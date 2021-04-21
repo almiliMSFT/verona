@@ -130,10 +130,17 @@ jobs:
     workingDirectory: $(Build.StagingDirectory)
 
   - bash: |
+      function log-and-run {
+        echo "Running "
+        echo "  CWD = $(pwd)"
+        echo "  CMD = $@"
+        "$@"
+      }
+
       rm -rf "$(LlvmBuildDir)"
       mkdir -p "$(LlvmBuildDir)"
       cd "$(LlvmBuildDir)"
-      cmake $(LlvmSourceDir)/llvm -GNinja -DCMAKE_BUILD_TYPE=$(BuildType) -DCMAKE_C_COMPILER=$(CC) -DCMAKE_CXX_COMPILER=$(CXX) -DCMAKE_CXX_FLAGS=$(CXXFLAGS) -DLLVM_USE_SANITIZER=$(Sanitizer) -DLLVM_ENABLE_PROJECTS="clang;mlir" -DLLVM_TARGETS_TO_BUILD="X86" -DLLVM_ENABLE_ASSERTIONS=ON -DLLVM_ENABLE_LLD=ON -DLLVM_ENABLE_EH=ON -DLLVM_ENABLE_RTTI=ON -DCMAKE_INSTALL_PREFIX=install -DMLIR_INCLUDE_TESTS=OFF
+      log-and-run cmake $(LlvmSourceDir)/llvm -GNinja -DCMAKE_BUILD_TYPE=$(BuildType) -DCMAKE_C_COMPILER=$(CC) -DCMAKE_CXX_COMPILER=$(CXX) -DCMAKE_CXX_FLAGS=$(CXXFLAGS) -DLLVM_USE_SANITIZER=$(Sanitizer) -DLLVM_ENABLE_PROJECTS="clang;mlir" -DLLVM_TARGETS_TO_BUILD="X86" -DLLVM_ENABLE_ASSERTIONS=ON -DLLVM_ENABLE_LLD=ON -DLLVM_ENABLE_EH=ON -DLLVM_ENABLE_RTTI=ON -DCMAKE_INSTALL_PREFIX=install -DMLIR_INCLUDE_TESTS=OFF
     displayName: 'CMake'
 
   - bash: |
