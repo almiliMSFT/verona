@@ -184,7 +184,7 @@ jobs:
       }
 
       declare failed=0
-      build 120m || failed=$?
+      build 90m || failed=$?
 
       extract_logs "$(pwd)" "$(AbLogsRootDir)"
 
