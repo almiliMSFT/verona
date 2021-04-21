@@ -152,9 +152,6 @@ jobs:
 
       function build {
         local time_limit="$1"
-        local NumAgents=`cat $(AbDeploymentJson) | jq '.Agents | length'`
-        local NumAgentCores=`cat $(AbDeploymentJson) | jq '.Agents[0].NumCores'`
-        local AgentLeaseCount=`cat $(AbDeploymentJson) | jq '.Agents[0].MaxLeases'`
 
         if [[ -z "$(AbExpName)" ]]; then
           echo "ERROR: Variable 'AbExpName' not set"
@@ -167,12 +164,11 @@ jobs:
         fi
 
         echo
-        echo "===== Running build (${{ parameters.CmakeJobs }} CMake jobs) up to ${time_limit} from $(pwd) with ${NumAgents} agent(s), ${NumAgentCores} core(s) per agent, ${AgentLeaseCount} lease(s) per agent"
+        echo "===== Running build (${{ parameters.CmakeJobs }} CMake jobs) up to ${time_limit} from $(pwd)"
         echo
 
         export llvmPassword=$(LLVMPrincipalPassword)
         timeout "$time_limit" time $(AbClientDirectory)/AnyBuild.sh \
-          --ExperimentName "$(AbExpName)_b:$(Build.BuildId)_a:${NumAgents}_c:${NumAgentCores}_l:${AgentLeaseCount}_j:${{ parameters.CmakeJobs }}_n:$(BuildName)" \
           --RemoteExecServiceUri $(AnyBuildEnvironmentUri) \
           --NoCheckForUpdates \
           --WaitForAgentForever \
@@ -188,7 +184,7 @@ jobs:
       }
 
       declare failed=0
-      build 60m || failed=$?
+      build 120m || failed=$?
 
       extract_logs "$(pwd)" "$(AbLogsRootDir)"
 
