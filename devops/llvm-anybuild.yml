@@ -21,8 +21,12 @@ parameters:
     default: 48
   # whether to publish installed LLVM binaries as a package
   - name: PublishPackage
-    type: boolean
-    default: false
+    type: string
+    default: Yes
+    values:
+    - Yes
+    - YesButScrubTimestamps
+    - No
 
 resources:
   repositories:
@@ -210,7 +214,7 @@ jobs:
       set -euo pipefail
       cd "$(LlvmBuildDir)"
       ninja clean
-    condition: and(succeeded(), eq(${{ parameters.PublishPackage }}, true))
+    condition: and(succeeded(), startsWith(${{ parameters.PublishPackage }}, 'Yes'))
     displayName: Delete build outputs to free up space for 'Create package'
 
   - task: PublishBuildArtifacts@1
@@ -238,7 +242,12 @@ jobs:
   - bash: |
       set -euo pipefail
       rm -f $(PKG_NAME).tar
-      tar --sort=name --owner=root:0 --group=root:0 --mtime='UTC 2021-01-01' -cf $(PKG_NAME).tar build/install
+      if [[ ${{ parameters.PublishPackage }} == 'YesButScrubTimestamps' ]]; then
+        tar --sort=name --mtime='UTC 2021-01-01' -cf $(PKG_NAME).tar build/install
+      else
+        tar --sort=name -cf $(PKG_NAME).tar build/install
+      fi
+
       md5sum $(PKG_NAME).tar | awk '{print $1}' > $(PKG_NAME).tar.md5
       rm -rf "$(PKG_NAME)"
       mkdir $(PKG_NAME)
@@ -248,12 +257,12 @@ jobs:
       ls -l "$(PKG_NAME)/"
       cat "$(PKG_NAME)/$(PKG_NAME).tar.md5"
     continueOnError: false
-    condition: and(succeeded(), eq(${{ parameters.PublishPackage }}, true))
+    condition: and(succeeded(), startsWith(${{ parameters.PublishPackage }}, 'Yes'))
     displayName: Create package
 
   - task: PublishBuildArtifacts@1
     displayName: 'Publish Artifact: Package'
-    condition: and(succeeded(), eq(${{ parameters.PublishPackage }}, true))
+    condition: and(succeeded(), startsWith(${{ parameters.PublishPackage }}, 'Yes'))
     inputs:
       PathToPublish: $(PKG_NAME)
       ArtifactName: $(PKG_NAME)
