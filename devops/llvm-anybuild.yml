@@ -214,7 +214,7 @@ jobs:
       set -euo pipefail
       cd "$(LlvmBuildDir)"
       ninja clean
-    condition: and(succeeded(), startsWith(${{ parameters.PublishPackage }}, 'Yes'))
+    condition: and(succeeded(), startsWith('${{ parameters.PublishPackage }}', 'Yes'))
     displayName: Delete build outputs to free up space for 'Create package'
 
   - task: PublishBuildArtifacts@1
@@ -257,12 +257,12 @@ jobs:
       ls -l "$(PKG_NAME)/"
       cat "$(PKG_NAME)/$(PKG_NAME).tar.md5"
     continueOnError: false
-    condition: and(succeeded(), startsWith(${{ parameters.PublishPackage }}, 'Yes'))
+    condition: and(succeeded(), startsWith('${{ parameters.PublishPackage }}', 'Yes'))
     displayName: Create package
 
   - task: PublishBuildArtifacts@1
     displayName: 'Publish Artifact: Package'
-    condition: and(succeeded(), startsWith(${{ parameters.PublishPackage }}, 'Yes'))
+    condition: and(succeeded(), startsWith('${{ parameters.PublishPackage }}', 'Yes'))
     inputs:
       PathToPublish: $(PKG_NAME)
       ArtifactName: $(PKG_NAME)
