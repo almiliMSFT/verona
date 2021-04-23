@@ -190,7 +190,7 @@ jobs:
           --ShimProcessFilter '$(AbShimFilter)' \
           ${{ parameters.ExtraAnyBuildArgs }} \
           -- \
-          cmake --build . -- -j ${{ parameters.CmakeJobs }} ${{ parameters.CmakeBuildToolArgs }}
+          env -i cmake --build . -- -j ${{ parameters.CmakeJobs }} ${{ parameters.CmakeBuildToolArgs }}
       }
 
       declare failed=0
