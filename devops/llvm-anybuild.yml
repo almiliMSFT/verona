@@ -228,7 +228,14 @@ jobs:
     condition: always()
     displayName: Print out AnyBuild stats
   
-  - script: |
+  - bash: |
+      set -euo pipefail
+      cd "$(LlvmBuildDir)"
+      ninja clean
+    condition: and(succeeded(), eq(${{ parameters.PublishPackage }}, true))
+    displayName: Delete build outputs to free up space for 'Create package'
+
+  - bash: |
       set -euo pipefail
       rm -f $(PKG_NAME).tar
       tar --sort=name --owner=root:0 --group=root:0 --mtime='UTC 2021-01-01' -cf $(PKG_NAME).tar build/install
@@ -242,7 +249,7 @@ jobs:
       cat "$(PKG_NAME)/$(PKG_NAME).tar.md5"
     continueOnError: false
     condition: and(succeeded(), eq(${{ parameters.PublishPackage }}, true))
-    displayName: 'Create package'
+    displayName: Create package
 
   - task: PublishBuildArtifacts@1
     displayName: 'Publish Artifact: Package'
