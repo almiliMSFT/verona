@@ -25,7 +25,7 @@ parameters:
     default: 'Yes'
     values:
     - 'Yes'
-    - 'YesButScrubTimestamps'
+    - 'YesButScrubFileInfo'
     - 'No'
 
 resources:
@@ -242,8 +242,8 @@ jobs:
   - bash: |
       set -euo pipefail
       rm -f $(PKG_NAME).tar
-      if [[ ${{ parameters.PublishPackage }} == 'YesButScrubTimestamps' ]]; then
-        tar --sort=name --mtime='UTC 2021-01-01' -cf $(PKG_NAME).tar build/install
+      if [[ '${{ parameters.PublishPackage }}' == 'YesButScrubFileInfo' ]]; then
+        tar --sort=name --owner=root:0 --group=root:0 --mtime='UTC 2021-01-01' -cf $(PKG_NAME).tar build/install
       else
         tar --sort=name -cf $(PKG_NAME).tar build/install
       fi
