@@ -22,11 +22,11 @@ parameters:
   # whether to publish installed LLVM binaries as a package
   - name: PublishPackage
     type: string
-    default: Yes
+    default: 'Yes'
     values:
-    - Yes
-    - YesButScrubTimestamps
-    - No
+    - 'Yes'
+    - 'YesButScrubTimestamps'
+    - 'No'
 
 resources:
   repositories:
