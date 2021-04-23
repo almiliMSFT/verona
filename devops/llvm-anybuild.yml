@@ -206,6 +206,13 @@ jobs:
     workingDirectory: $(LlvmBuildDir)
     displayName: Build LLVM with AnyBuild
 
+  - bash: |
+      set -euo pipefail
+      cd "$(LlvmBuildDir)"
+      ninja clean
+    condition: and(succeeded(), eq(${{ parameters.PublishPackage }}, true))
+    displayName: Delete build outputs to free up space for 'Create package'
+
   - task: PublishBuildArtifacts@1
     displayName: 'Publish Artifact: Logs'
     inputs:
@@ -227,13 +234,6 @@ jobs:
     continueOnError: true
     condition: always()
     displayName: Print out AnyBuild stats
-  
-  - bash: |
-      set -euo pipefail
-      cd "$(LlvmBuildDir)"
-      ninja clean
-    condition: and(succeeded(), eq(${{ parameters.PublishPackage }}, true))
-    displayName: Delete build outputs to free up space for 'Create package'
 
   - bash: |
       set -euo pipefail
