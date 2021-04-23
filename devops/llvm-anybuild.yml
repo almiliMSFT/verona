@@ -177,7 +177,10 @@ jobs:
         echo "===== Running build (${{ parameters.CmakeJobs }} CMake jobs) up to ${time_limit} from $(pwd)"
         echo
 
-        export llvmPassword=$(LLVMPrincipalPassword)
+        env -i \
+          llvmPassword=$(LLVMPrincipalPassword) \
+          HOME="$HOME" \
+          PATH="$PATH" \
         timeout "$time_limit" time $(AbClientDirectory)/AnyBuild.sh \
           --RemoteExecServiceUri $(AnyBuildEnvironmentUri) \
           --NoCheckForUpdates \
@@ -190,7 +193,7 @@ jobs:
           --ShimProcessFilter '$(AbShimFilter)' \
           ${{ parameters.ExtraAnyBuildArgs }} \
           -- \
-          env -i $(which cmake) --build . -- -j ${{ parameters.CmakeJobs }} ${{ parameters.CmakeBuildToolArgs }}
+          $(which cmake) --build . -- -j ${{ parameters.CmakeJobs }} ${{ parameters.CmakeBuildToolArgs }}
       }
 
       declare failed=0
