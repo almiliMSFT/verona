@@ -31,6 +31,8 @@ resources:
     endpoint: LLVMServiceConnection
     name: llvm/llvm-project
     trigger: none
+  - repo: self
+    trigger: none
 
 jobs:
 ############################################# Linux Builds
@@ -88,10 +90,17 @@ jobs:
     value: https://northeurope.anybuild-test.microsoft.com/api/clusters/$(AbClusterId)/agents
   - name: AbShimFilter
     value: '@(clang|clang++|*/clang|*/clang++|ar|*/ar|ranlib|*/ranlib|*/llvm-tblgen|*/mlir-tblgen)'
+  - name: VeronaSourceDirRelativePath
+    value: verona
+  - name: VeronaSourceDir
+    value: $(Agent.BuildDirectory)/$(VeronaSourceDirRelativePath)
 
   steps:
   - checkout: llvm
     path: $(LlvmSourceDirRelativePath)
+
+  - checkout: self
+    path: $(VeronaSourceDirRelativePath)
 
   - script: |
       set -euo pipefail
