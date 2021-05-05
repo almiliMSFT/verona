@@ -238,7 +238,7 @@ jobs:
       cd build/install
       find . -type f | sort | xargs md5sum | tee $(AbLogsRootDir)/llvm-install.official.md5.txt
     workingDirectory: $(LlvmBuildDir)
-    condition: and(succeeded(), eq("Release", "$(BuildType)"))
+    condition: and(succeeded(), eq(variables['BuildType'], 'Release'))
     displayName: Download the official LLVM build and compute MD5 checksums
 
   - bash: |
@@ -247,7 +247,7 @@ jobs:
       wc -l llvm-install.*.md5.txt
       diff llvm-install.anybuild.md5.txt llvm-install.official.md5.txt
     workingDirectory: $(AbLogsRootDir)
-    condition: and(succeeded(), eq("Release", "$(BuildType)"))
+    condition: and(succeeded(), eq(variables['BuildType'], 'Release'))
     displayName: Compare Computed MD5 checksums
 
   - bash: |
