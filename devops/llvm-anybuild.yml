@@ -208,6 +208,50 @@ jobs:
 
   - bash: |
       set -euo pipefail
+
+      for abLogFile in $(find "$(AbLogsRootDir)" -name AnyBuild.log); do
+          echo "=== $abLogFile ==="
+          sed -n '/Session telemetry: Finished/,$ p' "$abLogFile"
+          echo
+      done
+
+    workingDirectory: $(LlvmBuildDir)
+    continueOnError: true
+    condition: always()
+    displayName: Print out AnyBuild stats
+
+  - bash: |
+      set -euo pipefail
+      cd "$(LlvmBuildDir)/install"
+      find . -type f | sort | xargs md5sum | tee $(AbLogsRootDir)/llvm-install.anybuild.md5.txt
+    displayName: Compute MD5 checksums 
+
+  - bash: |
+      set -euo pipefail
+      LlvmCommitSha=$(git rev-parse HEAD)
+      LlvmBlobUrl=https://verona.blob.core.windows.net/llvmbuild/verona-llvm-install-x86_64-linux-release-${LlvmCommitSha:0:11}
+      mkdir -p official-llvm
+      cd official-llvm
+      echo "Downloading $LlvmBlobUrl"
+      wget -O archive.tgz $LlvmBlobUrl
+      tar xzvf archive.tgz
+      cd build/install
+      find . -type f | sort | xargs md5sum | tee $(AbLogsRootDir)/llvm-install.official.md5.txt
+    workingDirectory: $(LlvmBuildDir)
+    condition: and(succeeded(), eq("Release", "$(BuildType)"))
+    displayName: Download the official LLVM build and compute MD5 checksums
+
+  - bash: |
+      set -euo pipefail
+      ls -l llvm-install.*.md5.txt
+      wc -l llvm-install.*.md5.txt
+      diff llvm-install.anybuild.md5.txt llvm-install.official.md5.txt
+    workingDirectory: $(AbLogsRootDir)
+    condition: and(succeeded(), eq("Release", "$(BuildType)"))
+    displayName: Compare Computed MD5 checksums
+
+  - bash: |
+      set -euo pipefail
       cd "$(LlvmBuildDir)"
       ninja clean
     condition: and(succeeded(), eq(${{ parameters.PublishPackage }}, true))
@@ -220,20 +264,6 @@ jobs:
       ArtifactName: Logs_$(BuildName)
     continueOnError: true
     condition: always()
-
-  - bash: |
-      set -euo pipefail
-
-      for abLogFile in $(find "$(AbLogsRootDir)" -name AnyBuild.log); do
-          echo "=== $abLogFile ==="
-          sed -n '/Session telemetry: Finished/,$ p' "$abLogFile"
-          echo
-      done
-
-    workingDirectory: $(LlvmBuildDir)
-    continueOnError: true
-    condition: always()
-    displayName: Print out AnyBuild stats
 
   - bash: |
       set -euo pipefail
