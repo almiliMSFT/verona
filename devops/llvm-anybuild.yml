@@ -72,10 +72,8 @@ jobs:
     value: $HOME/.local/share/AnyBuildDeployment.json
   - name: AbLogsRootDir
     value: $(Build.StagingDirectory)/ab_logs
-  - name: LlvmSourceDirRelativePath
-    value: s
   - name: LlvmSourceDir
-    value: $(Agent.BuildDirectory)/$(LlvmSourceDirRelativePath)
+    value: $(Agent.SourceDirectory)/llvm-project
   - name: LlvmBuildDir
     value: $(LlvmSourceDir)/build
   - name: PKG_NAME
@@ -90,17 +88,12 @@ jobs:
     value: https://northeurope.anybuild-test.microsoft.com/api/clusters/$(AbClusterId)/agents
   - name: AbShimFilter
     value: '@(clang|clang++|*/clang|*/clang++|ar|*/ar|ranlib|*/ranlib|*/llvm-tblgen|*/mlir-tblgen)'
-  - name: VeronaSourceDirRelativePath
-    value: verona
   - name: VeronaSourceDir
-    value: $(Agent.BuildDirectory)/$(VeronaSourceDirRelativePath)
+    value: $(Agent.SourceDirectory)/verona
 
   steps:
   - checkout: llvm
-    path: $(LlvmSourceDirRelativePath)
-
   - checkout: self
-    path: $(VeronaSourceDirRelativePath)
 
   - script: |
       set -euo pipefail
