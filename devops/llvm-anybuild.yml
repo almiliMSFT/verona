@@ -299,8 +299,8 @@ jobs:
 
   - script: |
       set -euo pipefail
-      echo "Deleting $(LlvmBuildDir)"
-      rm -rf "$(LlvmBuildDir)"
+      # echo "Deleting $(LlvmBuildDir)"
+      # rm -rf "$(LlvmBuildDir)"
 
       echo "Deleting $(PKG_NAME)"
       rm -rf "$(PKG_NAME)"
