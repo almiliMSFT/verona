@@ -147,19 +147,6 @@ jobs:
     displayName: 'CMake'
 
   - bash: |
-      function extract_logs {
-        local buildDir="$1"
-        local logsDir="$2"
-
-        echo 
-        echo "====== Extracting logs from '${buildDir}' into '${logsDir}'"
-        echo
-
-        rm -rf "$logsDir"
-        mkdir "$logsDir"
-        mv "$buildDir"/*log "$logsDir"
-      }
-
       function build {
         local time_limit="$1"
 
@@ -178,29 +165,13 @@ jobs:
         echo
 
         env -i \
-          llvmPassword=$(LLVMPrincipalPassword) \
           HOME="$HOME" \
           PATH="$PATH" \
-        timeout "$time_limit" time $(AbClientDirectory)/AnyBuild.sh \
-          --RemoteExecServiceUri $(AnyBuildEnvironmentUri) \
-          --NoCheckForUpdates \
-          --WaitForAgentForever \
-          --DoNotUseMachineUtilizationForScheduling \
-          --Verbose \
-          --RemoteAll \
-          --ClientApplicationId $(LLVMPrincipalAppId) \
-          --ClientSecretEnvironmentVariable llvmPassword \
-          --ShimProcessFilter '$(AbShimFilter)' \
-          ${{ parameters.ExtraAnyBuildArgs }} \
-          -- \
-          $(which cmake) --build . -- -j ${{ parameters.CmakeJobs }} ${{ parameters.CmakeBuildToolArgs }}
+        $(which cmake) --build . -- -j ${{ parameters.CmakeJobs }} ${{ parameters.CmakeBuildToolArgs }}
       }
 
       declare failed=0
       build 90m || failed=$?
-
-      extract_logs "$(pwd)" "$(AbLogsRootDir)"
-
       exit $failed
 
     workingDirectory: $(LlvmBuildDir)
