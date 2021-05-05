@@ -53,6 +53,7 @@ jobs:
           BuildType: Release
           BuildName: release
           Sanitizer:
+          Asan: Off
 
       ${{ if eq(parameters.BuildDebug, true) }}:
         Clang Debug+ASAN:
@@ -62,6 +63,7 @@ jobs:
           BuildType: Debug
           BuildName: debug
           Sanitizer: Address
+          Asan: On
 
   variables:
   # - name: GOOD_HASH
@@ -90,6 +92,8 @@ jobs:
     value: '@(clang|clang++|*/clang|*/clang++|ar|*/ar|ranlib|*/ranlib|*/llvm-tblgen|*/mlir-tblgen)'
   - name: VeronaSourceDir
     value: $(Agent.BuildDirectory)/s/verona
+  - name: VeronaBuildDir
+    value: $(VeronaSourceDir)/build
 
   steps:
   - checkout: llvm
@@ -154,7 +158,7 @@ jobs:
       cd "$(LlvmBuildDir)"
       log-and-run cmake $(LlvmSourceDir)/llvm -GNinja -DCMAKE_BUILD_TYPE=$(BuildType) -DCMAKE_C_COMPILER=$(CC) -DCMAKE_CXX_COMPILER=$(CXX) -DCMAKE_CXX_FLAGS=$(CXXFLAGS) -DLLVM_USE_SANITIZER=$(Sanitizer) -DLLVM_ENABLE_PROJECTS="clang;mlir" -DLLVM_TARGETS_TO_BUILD="X86" -DLLVM_ENABLE_ASSERTIONS=ON -DLLVM_ENABLE_LLD=ON -DLLVM_ENABLE_EH=ON -DLLVM_ENABLE_RTTI=ON -DCMAKE_INSTALL_PREFIX=install -DMLIR_INCLUDE_TESTS=OFF
     workingDirectory: $(LlvmSourceDir)
-    displayName: 'CMake'
+    displayName: CMake (llvm-project)
 
   - bash: |
       function extract_logs {
@@ -224,7 +228,6 @@ jobs:
           sed -n '/Session telemetry: Finished/,$ p' "$abLogFile"
           echo
       done
-
     workingDirectory: $(LlvmBuildDir)
     continueOnError: true
     condition: always()
@@ -238,28 +241,33 @@ jobs:
     displayName: Compute MD5 checksums 
 
   - bash: |
-      set -euo pipefail
-      LlvmCommitSha=$(git rev-parse HEAD)
-      LlvmBlobUrl=https://verona.blob.core.windows.net/llvmbuild/verona-llvm-install-x86_64-linux-release-${LlvmCommitSha:0:11}
-      mkdir -p official-llvm
-      cd official-llvm
-      echo "Downloading $LlvmBlobUrl"
-      wget -O archive.tgz $LlvmBlobUrl
-      tar xzvf archive.tgz
-      cd build/install
-      find . -type f | sort | xargs md5sum | tee $(AbLogsRootDir)/llvm-install.official.md5.txt
-    workingDirectory: $(LlvmBuildDir)
-    condition: and(succeeded(), eq(variables['BuildType'], 'Release'))
-    displayName: Download the official LLVM build and compute MD5 checksums
+      function log-and-run {
+        echo "Running "
+        echo "  CWD = $(pwd)"
+        echo "  CMD = $@"
+        "$@"
+      }
+
+      rm -rf "$(VeronaBuildDir)"
+      mkdir -p "$(VeronaBuildDir)"
+      cd "$(VeronaBuildDir)"
+      log-and-run cmake $(VeronaSourceDir) -GNinja -DCMAKE_BUILD_TYPE=$(BuildType) -DCMAKE_CXX_FLAGS=$(CXXFLAGS) -DENABLE_ASSERTS=ON -DUSE_ASAN=$(Asan) -DVERONA_CI_BUILD=On -DRT_TESTS=ON
+    workingDirectory: $(VeronaSourceDir)
+    displayName: CMake (Verona)
 
   - bash: |
-      set -euo pipefail
-      ls -l llvm-install.*.md5.txt
-      wc -l llvm-install.*.md5.txt
-      diff llvm-install.anybuild.md5.txt llvm-install.official.md5.txt
-    workingDirectory: $(AbLogsRootDir)
-    condition: and(succeeded(), eq(variables['BuildType'], 'Release'))
-    displayName: Compare Computed MD5 checksums
+      set -eo pipefail
+      ninja
+    workingDirectory: $(VeronaBuildDir)
+    displayName: Compile Verona
+
+  - script: |
+      set -eo pipefail
+      export ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-6.0/bin/llvm-symbolizer
+      export ASAN_OPTIONS="alloc_dealloc_mismatch=0 symbolize=1"
+      ninja check
+    workingDirectory: $(VeronaBuildDir)
+    displayName: Tests Verona
 
   - bash: |
       ninja clean
