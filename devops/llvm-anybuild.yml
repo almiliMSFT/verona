@@ -125,8 +125,8 @@ jobs:
       # Install latest CMake from snap (must first remove the pre-installed one)
       sudo apt remove -y --purge cmake
       hash -r
-      sudo snap install cmake --classic 
-
+      sudo snap install cmake --classic
+      sudo pip install wheel OutputCheck
     displayName: 'Install build dependencies'
     workingDirectory: $(Build.StagingDirectory)
 
@@ -247,6 +247,8 @@ jobs:
         echo "  CMD = $@"
         "$@"
       }
+
+      set -euo pipefail
 
       rm -rf "$(VeronaBuildDir)"
       mkdir -p "$(VeronaBuildDir)"
