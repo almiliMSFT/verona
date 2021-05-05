@@ -95,6 +95,14 @@ jobs:
   - checkout: llvm
   - checkout: self
 
+
+  - script: |
+      set -eo pipefail
+      git submodule init
+      git submodule update --depth 1 --recursive
+    workingDirectory: $(VeronaSourceDir)
+    displayName: Checkout Verona submodules
+
   - script: |
       set -euo pipefail
       if [[ -z $(GOOD_HASH) ]]; then
