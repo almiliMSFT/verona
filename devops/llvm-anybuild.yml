@@ -202,9 +202,7 @@ jobs:
       echo "Created archive $(pwd)/llvm-linux.tar with MD5 checksum"
       md5sum llvm-linux.tar
     workingDirectory: $(LlvmBuildDir)
-    continueOnError: false
-    condition: and(succeeded(), eq(${{ parameters.PublishPackage }}, true))
-    displayName: 'Create package'
+    displayName: Create Package
 
   - publish: $(LlvmBuildDir)/llvm-linux.tar
     displayName: Publish Package
