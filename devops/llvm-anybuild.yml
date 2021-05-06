@@ -84,20 +84,20 @@ jobs:
       git checkout $(GOOD_HASH)
     displayName: Prepare Tree
 
+  # TODO: add 'clang' to LLVM_ENABLE_PROJECTS
   - script: |
       rd /s /q build
       call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat"
       mkdir build
       cd build
-      # TODO: add 'clang' to LLVM_ENABLE_PROJECTS
       "C:\Program Files\CMake\bin\cmake.exe" ..\llvm -GNinja -DCMAKE_BUILD_TYPE=$(BuildType) -DLLVM_ENABLE_PROJECTS="mlir" -DLLVM_TARGETS_TO_BUILD="X86" -DLLVM_ENABLE_ASSERTIONS=ON -DLLVM_ENABLE_EH=ON -DLLVM_ENABLE_RTTI=ON -DCMAKE_INSTALL_PREFIX=install -DMLIR_INCLUDE_TESTS=OFF
     displayName: CMake
 
+  # TODO: pass $(ExtraAnyBuildArgs)
   - script: |
       call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat"
       cd build
 
-      # TODO: pass $(ExtraAnyBuildArgs)
       set ServicePrincipalPassword=$(LLVMPrincipalPassword)
       call "%LOCALAPPDATA%\Microsoft\AnyBuild\AnyBuild.cmd" --EnableActionCache --WhyCacheMiss --RemoteExecServiceUri $(AnyBuildEnvironmentUri) --ClientApplicationId $(LLVMPrincipalAppId) --ClientSecretEnvironmentVariable ServicePrincipalPassword --WaitForAgentForever --DoNotUseMachineUtilizationForScheduling --Verbose -- "C:\ProgramData\chocolatey\lib\ninja\tools\ninja.exe" -j24 install
     displayName: Compile
@@ -112,10 +112,12 @@ jobs:
   displayName: LLVM Linux
   condition: ${{ eq(parameters.BuildLinux, true) }}
   pool:
-    name: AnyBuild
-    demands:
-    - Configuration -equals Release
-    - Agent.OS -equals Linux
+    vmImage: 'ubuntu-18.04'
+  # pool:
+  #   name: AnyBuild
+  #   demands:
+  #   - Configuration -equals Release
+  #   - Agent.OS -equals Linux
   timeoutInMinutes: 120
 
   variables:
