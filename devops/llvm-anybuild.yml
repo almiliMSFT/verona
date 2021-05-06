@@ -260,7 +260,7 @@ jobs:
         -DCMAKE_C_COMPILER=gcc                               \
         -DCMAKE_CXX_COMPILER=g++                             \
         -DCMAKE_BUILD_TYPE=$(BuildType)                      \
-        -DCMAKE_CXX_FLAGS=$(CXXFLAGS)                        \
+        -DCMAKE_CXX_FLAGS=                                   \
         -DENABLE_ASSERTS=ON                                  \
         -DUSE_ASAN=$(Asan)                                   \
         -DVERONA_CI_BUILD=ON                                 \
