@@ -27,8 +27,70 @@ resources:
     trigger: none
 
 jobs:
+############################################# Windows Builds
+- job: LLVM_Windows
+  displayName: LLVM Windows
+  condition: ${{ eq(parameters.BuildWindows, true) }}
+  pool:
+    name: AnyBuild
+    demands:
+    - Agent.OS -equals Windows_NT
+  timeoutInMinutes: 120
+  strategy:
+    matrix:
+      Release:
+        BuildType: Release
+        BuildName: release
+  variables:
+  - name: PKG_NAME
+    value: verona-llvm-install-x86_64-windows-$(BuildName)-$(GOOD_HASH)
+
+  steps:
+  - checkout: llvm
+
+  - powershell: |
+      Invoke-WebRequest -Uri https://aka.ms/installazurecliwindows -OutFile .\AzureCLI.msi; Start-Process msiexec.exe -Wait -ArgumentList '/I AzureCLI.msi /quiet'; rm .\AzureCLI.msi
+    displayName: 'Install Azure CLI'
+  - powershell: |
+      Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+    displayName: 'Install Choco'
+  - powershell: |
+      C:\ProgramData\chocolatey\bin\choco install --accept-license -y cmake ninja
+    displayName: 'Install CMake'
+  - script: |
+      git checkout main
+      git pull
+      git checkout $(GOOD_HASH)
+    displayName: 'Prepare tree'
+  - script: |
+      rd /s /q build
+      call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+      mkdir build
+      cd build
+      "C:\Program Files\CMake\bin\cmake.exe" ..\llvm -GNinja -DCMAKE_BUILD_TYPE=$(BuildType) -DLLVM_ENABLE_PROJECTS="clang;mlir" -DLLVM_TARGETS_TO_BUILD="X86" -DLLVM_ENABLE_ASSERTIONS=ON -DLLVM_ENABLE_EH=ON -DLLVM_ENABLE_RTTI=ON -DCMAKE_INSTALL_PREFIX=install -DMLIR_INCLUDE_TESTS=OFF
+    displayName: 'CMake'
+  - script: |
+      call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+      cd build
+      "C:\ProgramData\chocolatey\lib\ninja\tools\ninja.exe" install
+    displayName: 'Compile'
+  - script: |
+      rd /s /q $(PKG_NAME).tar.gz
+      tar.exe -z -c -f $(PKG_NAME).tar.gz build/install
+    displayName: 'Create package'
+  - powershell:
+      Get-FileHash $(PKG_NAME).tar.gz -Algorithm MD5 | Select-Object Hash | Format-Wide > $(PKG_NAME).tar.gz.md5
+    displayName: 'Create MD5'
+
+  - script: |
+      "C:\Program Files (x86)\Microsoft SDKs\Azure\CLI2\wbin\az" storage blob upload --container-name llvmbuild --file $(PKG_NAME).tar.gz --name $(PKG_NAME) --connection-string "$(BLOB_CONNECTION_STRING)"
+    displayName: 'Upload package'
+  - script: |
+      "C:\Program Files (x86)\Microsoft SDKs\Azure\CLI2\wbin\az" storage blob upload --container-name llvmbuild --file $(PKG_NAME).tar.gz.md5 --name $(PKG_NAME).md5 --connection-string "$(BLOB_CONNECTION_STRING)"
+    displayName: 'Upload MD5'
+
 ############################################# Linux Builds
-- job: LLVM
+- job: LLVM_Linux
   displayName: LLVM Linux
   condition: ${{ eq(parameters.BuildLinux, true) }}
   pool:
@@ -66,7 +128,7 @@ jobs:
 
   steps:
   - checkout: llvm
-    path: 
+    path: $(LlvmSourceDirRelativePath)
 
   - script: |
       set -euo pipefail
@@ -227,7 +289,7 @@ jobs:
 
 - job: Verona
   displayName: Verona Linux
-  dependsOn: [ LLVM ]
+  dependsOn: [ LLVM_Linux ]
   pool:
     vmImage: 'ubuntu-18.04'
   timeoutInMinutes: 120
