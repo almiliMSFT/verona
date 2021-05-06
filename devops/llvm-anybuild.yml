@@ -21,11 +21,11 @@ resources:
 jobs:
 ############################################# Linux Builds
 - job: LLVM
-  displayName: LLVM Linux Build
+  displayName: LLVM Linux
   pool:
     name: AnyBuild
     demands:
-    - Configuration -equals $(BuildType)
+    - Configuration -equals Release
   timeoutInMinutes: 120
 
   variables:
