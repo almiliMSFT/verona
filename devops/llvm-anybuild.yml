@@ -253,13 +253,20 @@ jobs:
       rm -rf "$(VeronaBuildDir)"
       mkdir -p "$(VeronaBuildDir)"
       cd "$(VeronaBuildDir)"
-      log-and-run cmake $(VeronaSourceDir) -GNinja -DCMAKE_BUILD_TYPE=$(BuildType) -DCMAKE_CXX_FLAGS=$(CXXFLAGS) -DENABLE_ASSERTS=ON -DUSE_ASAN=$(Asan) -DVERONA_CI_BUILD=On -DRT_TESTS=ON
 
-      # move llvm install folder 
-      mlirBuildDir="$(VeronaBuildDir)/$(BuildType)/mlir/build"
-      rm -rf "${mlirBuildDir}"
-      mkdir -p "${mlirBuildDir}"
-      mv -v "$(LlvmBuildDir)/install" "${mlirBuildDir}"
+      log-and-run cmake                                      \
+        $(VeronaSourceDir)                                   \
+        -GNinja                                              \
+        -DCMAKE_C_COMPILER=$(CC)                             \
+        -DCMAKE_CXX_COMPILER=$(CXX)                          \
+        -DCMAKE_BUILD_TYPE=$(BuildType)                      \
+        -DCMAKE_CXX_FLAGS=$(CXXFLAGS)                        \
+        -DENABLE_ASSERTS=ON                                  \
+        -DUSE_ASAN=$(Asan)                                   \
+        -DVERONA_CI_BUILD=ON                                 \
+        -DRT_TESTS=ON                                        \
+        -DVERONA_EXTERNAL_LLVM_DIR="$(LlvmBuildDir)/install" \
+        -DVERONA_DOWNLOAD_LLVM=OFF
     workingDirectory: $(VeronaSourceDir)
     displayName: CMake (Verona)
 
