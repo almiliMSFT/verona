@@ -181,43 +181,6 @@ jobs:
     displayName: Print out AnyBuild stats
 
   - bash: |
-      set -euo pipefail
-      cd "$(LlvmBuildDir)/install"
-      find . -type f | sort | xargs md5sum | tee $(AbLogsRootDir)/llvm-install.anybuild.md5.txt
-    workingDirectory: $(LlvmSourceDir)
-    displayName: Compute MD5 checksums 
-
-  - bash: |
-      function log-and-run {
-        echo "Running "
-        echo "  CWD = $(pwd)"
-        echo "  CMD = $@"
-        "$@"
-      }
-
-      set -euo pipefail
-
-      rm -rf "$(VeronaBuildDir)"
-      mkdir -p "$(VeronaBuildDir)"
-      cd "$(VeronaBuildDir)"
-
-      log-and-run cmake                                      \
-        $(VeronaSourceDir)                                   \
-        -GNinja                                              \
-        -DCMAKE_C_COMPILER=gcc                               \
-        -DCMAKE_CXX_COMPILER=g++                             \
-        -DCMAKE_BUILD_TYPE=$(BuildType)                      \
-        -DCMAKE_CXX_FLAGS=                                   \
-        -DENABLE_ASSERTS=ON                                  \
-        -DUSE_ASAN=$(Asan)                                   \
-        -DVERONA_CI_BUILD=ON                                 \
-        -DRT_TESTS=ON                                        \
-        -DVERONA_EXTERNAL_LLVM_DIR="$(LlvmBuildDir)/install" \
-        -DVERONA_DOWNLOAD_LLVM=OFF
-    workingDirectory: $(VeronaSourceDir)
-    displayName: CMake (Verona)
-
-  - bash: |
       ninja clean
     workingDirectory: $(LlvmBuildDir)
     displayName: Delete build outputs to free up space for 'Create package'
