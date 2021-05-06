@@ -194,7 +194,19 @@ jobs:
     continueOnError: true
     condition: always()
 
-  - publish: $(LlvmBuildDir)/install
+  - bash: |
+      set -euo pipefail
+
+      tar --sort=name -cf llvm-linux.tar install
+
+      echo "Created archive $(pwd)/llvm-linux.tar with MD5 checksum"
+      md5sum llvm-linux.tar
+    workingDirectory: $(LlvmBuildDir)
+    continueOnError: false
+    condition: and(succeeded(), eq(${{ parameters.PublishPackage }}, true))
+    displayName: 'Create package'
+
+  - publish: $(LlvmBuildDir)/llvm-linux.tar
     displayName: Publish Package
     artifact: llvm-linux
 
@@ -218,37 +230,37 @@ jobs:
         CXX: g++
         CXXFLAGS:
         BuildType: Debug
-        Asan: Off
+        Asan: OFF
       GCC Release:
         CC: gcc
         CXX: g++
         CXXFLAGS:
-        Asan: Off
+        Asan: OFF
         BuildType: Release
       Clang Debug:
         CC: clang
         CXX: clang++
         CXXFLAGS: -stdlib=libstdc++
         BuildType: Debug
-        Asan: Off
+        Asan: OFF
       Clang Release:
         CC: clang
         CXX: clang++
         CXXFLAGS: -stdlib=libstdc++
-        Asan: Off
+        Asan: OFF
         BuildType: Release
       Clang Debug (ASAN):
         CC: clang
         CXX: clang++
         CXXFLAGS: -stdlib=libstdc++
         BuildType: Debug
-        Asan: On
+        Asan: ON
       Clang Release (ASAN):
         CC: clang
         CXX: clang++
         CXXFLAGS: -stdlib=libstdc++
         BuildType: Release
-        Asan: On
+        Asan: ON
 
   variables:
   - name: VeronaSourceDirRelativePath
@@ -257,6 +269,8 @@ jobs:
     value: $(Agent.BuildDirectory)/$(VeronaSourceDirRelativePath)
   - name: VeronaBuildDir
     value: $(VeronaSourceDir)/build
+  - name: LlvmLinuxDownloadDir
+    value: $(Pipeline.Workspace)/llvm-linux
 
   steps:
   - checkout: self
@@ -266,7 +280,13 @@ jobs:
     artifact: llvm-linux
 
   - bash: |
-      set -eo pipefail
+      set -euo pipefail
+      tar xvf llvm-linux.tar
+    workingDirectory: $(LlvmLinuxDownloadDir)
+    displayName: Extract
+
+  - bash: |
+      set -euo pipefail
       git submodule init
       git submodule update --depth 1 --recursive
     workingDirectory: $(VeronaSourceDir)
@@ -307,7 +327,7 @@ jobs:
         -DVERONA_CI_BUILD=ON            \
         -DRT_TESTS=ON                   \
         -DVERONA_DOWNLOAD_LLVM=OFF      \
-        -DVERONA_EXTERNAL_LLVM_DIR="$(Pipeline.Workspace)/llvm-linux"
+        -DVERONA_EXTERNAL_LLVM_DIR="$(LlvmLinuxDownloadDir)/install"
     workingDirectory: $(VeronaSourceDir)
     displayName: CMake
 
@@ -319,8 +339,9 @@ jobs:
 
   - bash: |
       set -eo pipefail
-      export ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-6.0/bin/llvm-symbolizer
-      export ASAN_OPTIONS="alloc_dealloc_mismatch=0 symbolize=1"
+      env \
+        ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-6.0/bin/llvm-symbolizer \
+        ASAN_OPTIONS="alloc_dealloc_mismatch=0 symbolize=1" \
       ninja check
     workingDirectory: $(VeronaBuildDir)
     displayName: Tests
