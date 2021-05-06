@@ -209,7 +209,6 @@ jobs:
   displayName: Verona Linux
   pool:
     vmImage: 'ubuntu-18.04'
-  dependsOn: [ LLVM ]
   timeoutInMinutes: 120
   strategy:
     matrix:
@@ -262,9 +261,6 @@ jobs:
   - checkout: self
     path: $(VeronaSourceDirRelativePath)
 
-  - download: current
-    artifact: llvm-linux
-
   - bash: |
       set -eo pipefail
       git submodule init
@@ -310,6 +306,9 @@ jobs:
         -DVERONA_EXTERNAL_LLVM_DIR="$(Pipeline.Workspace)/llvm-linux"
     workingDirectory: $(VeronaSourceDir)
     displayName: CMake
+
+  - download: current
+    artifact: llvm-linux
 
   - bash: |
       set -eo pipefail
