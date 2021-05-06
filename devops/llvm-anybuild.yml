@@ -16,6 +16,18 @@ parameters:
     type: number
     default: 48
 
+variables:
+- name: AbEnvironmentName
+  value: LLVMVna
+- name: AbClusterId
+  value: 0310c9eb-18d0-4a58-bc85-bdc02a4d764a
+- name: AnyBuildEnvironmentUri
+  value: https://northeurope.anybuild-test.microsoft.com/api/clusters/$(AbClusterId)/agents
+- name: AnyBuildSource
+  value: https://anybuild$(AbEnvironmentName)neurope.blob.core.windows.net/clientreleases
+- name: AnyBuildRing
+  value: Dogfood
+
 resources:
   repositories:
   - repository: llvm
@@ -51,34 +63,43 @@ jobs:
   - powershell: |
       Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
     displayName: 'Install Choco'
+
   - powershell: |
       C:\ProgramData\chocolatey\bin\choco install --accept-license -y cmake ninja
-    displayName: 'Install CMake'
+    displayName: Install CMake
+
+  - powershell: |
+      Set-ExecutionPolicy Bypass -Scope Process -Force
+
+      Remove-Item -Force -Recurse "$env:LOCALAPPDATA\Microsoft\AnyBuild" -ea SilentlyContinue
+
+      Invoke-Command -ScriptBlock ([scriptblock]::Create((New-Object System.Net.WebClient).DownloadString("$(AnyBuildSource)/bootstrapper.ps1"))) -ArgumentList ("$(AnyBuildSource)", "$(AnyBuildRing)")
+    displayName: Install AnyBuild
+
   - script: |
       git checkout main
       git pull
       git checkout $(GOOD_HASH)
-    displayName: 'Prepare tree'
+    displayName: Prepare Tree
+
   - script: |
       rd /s /q build
       call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat"
       mkdir build
       cd build
-      "C:\Program Files\CMake\bin\cmake.exe" ..\llvm -GNinja -DCMAKE_BUILD_TYPE=$(BuildType) -DLLVM_ENABLE_PROJECTS="clang;mlir" -DLLVM_TARGETS_TO_BUILD="X86" -DLLVM_ENABLE_ASSERTIONS=ON -DLLVM_ENABLE_EH=ON -DLLVM_ENABLE_RTTI=ON -DCMAKE_INSTALL_PREFIX=install -DMLIR_INCLUDE_TESTS=OFF
-    displayName: 'CMake'
+      # TODO: add 'clang' to LLVM_ENABLE_PROJECTS
+      "C:\Program Files\CMake\bin\cmake.exe" ..\llvm -GNinja -DCMAKE_BUILD_TYPE=$(BuildType) -DLLVM_ENABLE_PROJECTS="mlir" -DLLVM_TARGETS_TO_BUILD="X86" -DLLVM_ENABLE_ASSERTIONS=ON -DLLVM_ENABLE_EH=ON -DLLVM_ENABLE_RTTI=ON -DCMAKE_INSTALL_PREFIX=install -DMLIR_INCLUDE_TESTS=OFF
+    displayName: CMake
+
   - script: |
       call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat"
       cd build
-      "C:\ProgramData\chocolatey\lib\ninja\tools\ninja.exe" install
+
+      set ServicePrincipalPassword=$(LLVMPrincipalPassword)
+      call "%LOCALAPPDATA%\Microsoft\AnyBuild\AnyBuild.cmd" --RemoteExecServiceUri $(AnyBuildEnvironmentUri) --ClientApplicationId $(LLVMPrincipalAppId) --ClientSecretEnvironmentVariable ServicePrincipalPassword --WaitForAgentForever --DoNotUseMachineUtilizationForScheduling --Verbose -- "C:\ProgramData\chocolatey\lib\ninja\tools\ninja.exe" -j12 install
     displayName: Compile
-  - script: |
-      rd /s /q $(PKG_NAME).tar.gz
-      tar.exe -z -c -f $(PKG_NAME).tar.gz build/install
-    displayName: Create Package
-  - powershell:
-      Get-FileHash $(PKG_NAME).tar.gz -Algorithm MD5 | Select-Object Hash | Format-Wide > $(PKG_NAME).tar.gz.md5
-    displayName: Create MD5
-  - publish: $(PKG_NAME).tar.gz
+
+  - publish: build/install
     displayName: Publish Package
     artifact: llvm-windows
 
@@ -109,14 +130,6 @@ jobs:
     value: $(Agent.BuildDirectory)/$(LlvmSourceDirRelativePath)
   - name: LlvmBuildDir
     value: $(LlvmSourceDir)/build
-  - name: AbExpName
-    value: LLVMVna
-  - name: AbEnvironmentName
-    value: LLVMVna
-  - name: AbClusterId
-    value: 0310c9eb-18d0-4a58-bc85-bdc02a4d764a
-  - name: AnyBuildEnvironmentUri
-    value: https://northeurope.anybuild-test.microsoft.com/api/clusters/$(AbClusterId)/agents
   - name: AbShimFilter
     value: '@(clang|clang++|*/clang|*/clang++|ar|*/ar|ranlib|*/ranlib|*/llvm-tblgen|*/mlir-tblgen)'
 
@@ -150,14 +163,14 @@ jobs:
   - bash: |
       set -euo pipefail
 
-      declare AnyBuildSource=https://anybuild$(AbEnvironmentName)neurope.blob.core.windows.net/clientreleases
-      declare Ring=Dogfood
+      declare 
+      declare AnyBuildRing=Dogfood
 
       rm -rf $(AbClientDirectory)
-      wget -O /tmp/bootstrapper.sh ${AnyBuildSource}/bootstrapper.sh
+      wget -O /tmp/bootstrapper.sh $(AnyBuildSource)/bootstrapper.sh
       chmod +x /tmp/bootstrapper.sh
 
-      /tmp/bootstrapper.sh ${AnyBuildSource} ${Ring}
+      /tmp/bootstrapper.sh $(AnyBuildSource) $(AnyBuildRing)
     displayName: Install AnyBuild client
     workingDirectory: $(Build.StagingDirectory)
 
@@ -192,11 +205,6 @@ jobs:
 
       function build {
         local time_limit="$1"
-
-        if [[ -z "$(AbExpName)" ]]; then
-          echo "ERROR: Variable 'AbExpName' not set"
-          return 1
-        fi
 
         if [[ -z "${{ parameters.CmakeJobs }}" ]]; then
           echo "ERROR: Variable 'CmakeJobs' not set"
