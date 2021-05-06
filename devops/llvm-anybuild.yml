@@ -36,34 +36,13 @@ resources:
 
 jobs:
 ############################################# Linux Builds
-- job:
+- job: LLVM
   displayName: LLVM Linux Build
   pool:
     name: AnyBuild
     demands:
     - Configuration -equals $(BuildType)
   timeoutInMinutes: 120
-  strategy:
-    matrix:
-      ${{ if eq(parameters.BuildRelease, true) }}:
-        Clang Release:
-          CC: clang
-          CXX: clang++
-          CXXFLAGS: -stdlib=libstdc++
-          BuildType: Release
-          BuildName: release
-          Sanitizer:
-          Asan: Off
-
-      ${{ if eq(parameters.BuildDebug, true) }}:
-        Clang Debug+ASAN:
-          CC: clang
-          CXX: clang++
-          CXXFLAGS: -stdlib=libstdc++
-          BuildType: Debug
-          BuildName: debug
-          Sanitizer: Address
-          Asan: On
 
   variables:
   # - name: GOOD_HASH
@@ -78,8 +57,6 @@ jobs:
     value: $(Agent.BuildDirectory)/s/llvm-project
   - name: LlvmBuildDir
     value: $(LlvmSourceDir)/build
-  - name: PKG_NAME
-    value: verona-llvm-install-x86_64-linux-$(BuildName)-$(GOOD_HASH)
   - name: AbExpName
     value: LLVMVna
   - name: AbEnvironmentName
@@ -90,21 +67,9 @@ jobs:
     value: https://northeurope.anybuild-test.microsoft.com/api/clusters/$(AbClusterId)/agents
   - name: AbShimFilter
     value: '@(clang|clang++|*/clang|*/clang++|ar|*/ar|ranlib|*/ranlib|*/llvm-tblgen|*/mlir-tblgen)'
-  - name: VeronaSourceDir
-    value: $(Agent.BuildDirectory)/s/verona
-  - name: VeronaBuildDir
-    value: $(VeronaSourceDir)/build
 
   steps:
   - checkout: llvm
-  - checkout: self
-
-  - script: |
-      set -eo pipefail
-      git submodule init
-      git submodule update --depth 1 --recursive
-    workingDirectory: $(VeronaSourceDir)
-    displayName: Checkout Verona submodules
 
   - script: |
       set -euo pipefail
@@ -120,13 +85,12 @@ jobs:
       set -euo pipefail
 
       sudo apt-get update
-      sudo apt-get install -y clang ninja-build lld jq tree python-pip
+      sudo apt-get install -y clang ninja-build lld jq tree
 
       # Install latest CMake from snap (must first remove the pre-installed one)
       sudo apt remove -y --purge cmake
       hash -r
       sudo snap install cmake --classic
-      sudo pip install wheel OutputCheck
     displayName: 'Install build dependencies'
     workingDirectory: $(Build.StagingDirectory)
 
@@ -141,7 +105,6 @@ jobs:
       chmod +x /tmp/bootstrapper.sh
 
       /tmp/bootstrapper.sh ${AnyBuildSource} ${Ring}
-
     displayName: Install AnyBuild client
     workingDirectory: $(Build.StagingDirectory)
 
@@ -156,9 +119,9 @@ jobs:
       rm -rf "$(LlvmBuildDir)"
       mkdir -p "$(LlvmBuildDir)"
       cd "$(LlvmBuildDir)"
-      log-and-run cmake $(LlvmSourceDir)/llvm -GNinja -DCMAKE_BUILD_TYPE=$(BuildType) -DCMAKE_C_COMPILER=$(CC) -DCMAKE_CXX_COMPILER=$(CXX) -DCMAKE_CXX_FLAGS=$(CXXFLAGS) -DLLVM_USE_SANITIZER=$(Sanitizer) -DLLVM_ENABLE_PROJECTS="clang;mlir" -DLLVM_TARGETS_TO_BUILD="X86" -DLLVM_ENABLE_ASSERTIONS=ON -DLLVM_ENABLE_LLD=ON -DLLVM_ENABLE_EH=ON -DLLVM_ENABLE_RTTI=ON -DCMAKE_INSTALL_PREFIX=install -DMLIR_INCLUDE_TESTS=OFF
+      log-and-run cmake $(LlvmSourceDir)/llvm -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_CXX_FLAGS=-stdlib=libstdc++ -DLLVM_USE_SANITIZER= -DLLVM_ENABLE_PROJECTS="clang;mlir" -DLLVM_TARGETS_TO_BUILD="X86" -DLLVM_ENABLE_ASSERTIONS=ON -DLLVM_ENABLE_LLD=ON -DLLVM_ENABLE_EH=ON -DLLVM_ENABLE_RTTI=ON -DCMAKE_INSTALL_PREFIX=install -DMLIR_INCLUDE_TESTS=OFF
     workingDirectory: $(LlvmSourceDir)
-    displayName: CMake (llvm-project)
+    displayName: CMake
 
   - bash: |
       function extract_logs {
@@ -271,62 +234,142 @@ jobs:
     displayName: CMake (Verona)
 
   - bash: |
-      set -eo pipefail
-      ninja
-    workingDirectory: $(VeronaBuildDir)
-    displayName: Compile Verona
-
-  - script: |
-      set -eo pipefail
-      export ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-6.0/bin/llvm-symbolizer
-      export ASAN_OPTIONS="alloc_dealloc_mismatch=0 symbolize=1"
-      ninja check
-    workingDirectory: $(VeronaBuildDir)
-    displayName: Tests Verona
-
-  - bash: |
       ninja clean
     workingDirectory: $(LlvmBuildDir)
     condition: and(succeeded(), eq(${{ parameters.PublishPackage }}, true))
     displayName: Delete build outputs to free up space for 'Create package'
 
-  - task: PublishBuildArtifacts@1
-    displayName: 'Publish Artifact: Logs'
-    inputs:
-      PathToPublish: $(AbLogsRootDir)
-      ArtifactName: Logs_$(BuildName)
+  - publish: $(AbLogsRootDir)
+    displayName: Publish Logs
+    artifact: Logs_$(BuildName)
     continueOnError: true
     condition: always()
 
-  - bash: |
-      set -euo pipefail
-      rm -f $(PKG_NAME).tar
-      tar --sort=name -cf $(PKG_NAME).tar build/install
-      md5sum $(PKG_NAME).tar | awk '{print $1}' > $(PKG_NAME).tar.md5
-      rm -rf "$(PKG_NAME)"
-      mkdir $(PKG_NAME)
-      mv "$(PKG_NAME).tar" "$(PKG_NAME)/"
-      mv "$(PKG_NAME).tar.md5" "$(PKG_NAME)/"
-      echo "Created '$(PKG_NAME).tar'"
-      ls -l "$(PKG_NAME)/"
-      cat "$(PKG_NAME)/$(PKG_NAME).tar.md5"
-    workingDirectory: $(LlvmSourceDir)
+  - publish: $(LlvmBuildDir)/install
+    displayName: Publish Package
     condition: and(succeeded(), eq(${{ parameters.PublishPackage }}, true))
-    displayName: Create package
-
-  - task: PublishBuildArtifacts@1
-    displayName: 'Publish Artifact: Package'
-    condition: and(succeeded(), eq(${{ parameters.PublishPackage }}, true))
-    inputs:
-      PathToPublish: $(PKG_NAME)
-      ArtifactName: $(PKG_NAME)
+    artifact: llvm-linux
 
   - script: |
       set -euo pipefail
-      # echo "Deleting $(LlvmBuildDir)"
-      # rm -rf "$(LlvmBuildDir)"
-
-      echo "Deleting $(PKG_NAME)"
-      rm -rf "$(PKG_NAME)"
+      echo "Deleting $(LlvmBuildDir)"
+      rm -rf "$(LlvmBuildDir)"
     continueOnError: false
-    displayName: 'Clean'
+    displayName: Clean
+
+- job: Verona
+  displayName: Verona Linux
+  pool:
+    vmImage: 'ubuntu-18.04'
+  dependsOn: [ LLVM ]
+  timeoutInMinutes: 120
+  strategy:
+    matrix:
+      GCC Debug:
+        CC: gcc
+        CXX: g++
+        CXXFLAGS:
+        BuildType: Debug
+        Asan: Off
+      GCC Release:
+        CC: gcc
+        CXX: g++
+        CXXFLAGS:
+        Asan: Off
+        BuildType: Release
+      Clang Debug:
+        CC: clang
+        CXX: clang++
+        CXXFLAGS: -stdlib=libstdc++
+        BuildType: Debug
+        Asan: Off
+      Clang Release:
+        CC: clang
+        CXX: clang++
+        CXXFLAGS: -stdlib=libstdc++
+        Asan: Off
+        BuildType: Release
+      Clang Debug (ASAN):
+        CC: clang
+        CXX: clang++
+        CXXFLAGS: -stdlib=libstdc++
+        BuildType: Debug
+        Asan: On
+      Clang Release (ASAN):
+        CC: clang
+        CXX: clang++
+        CXXFLAGS: -stdlib=libstdc++
+        BuildType: Release
+        Asan: On
+
+  variables:
+  - name: VeronaSourceDir
+    value: $(Agent.BuildDirectory)/s/verona
+  - name: VeronaBuildDir
+    value: $(VeronaSourceDir)/build
+
+  steps:
+  - checkout: self
+
+  - bash: |
+      set -eo pipefail
+      git submodule init
+      git submodule update --depth 1 --recursive
+    workingDirectory: $(VeronaSourceDir)
+    displayName: Checkout Verona submodules
+
+  - bash: |
+      set -eo pipefail
+      sudo apt-get update
+      sudo apt-get install -y ninja-build
+      sudo apt-get remove --purge cmake
+      sudo snap install cmake --classic
+      sudo pip install wheel OutputCheck
+    displayName: 'Dependencies'
+
+  - download: current
+    artifact: llvm-linux
+
+  - bash: |
+      function log-and-run {
+        echo "Running "
+        echo "  CWD = $(pwd)"
+        echo "  CMD = $@"
+        "$@"
+      }
+
+      set -euo pipefail
+
+      rm -rf "$(VeronaBuildDir)"
+      mkdir -p "$(VeronaBuildDir)"
+      cd "$(VeronaBuildDir)"
+
+      log-and-run cmake                 \
+        $(VeronaSourceDir)              \
+        -GNinja                         \
+        -DCMAKE_C_COMPILER=$(CC)        \
+        -DCMAKE_CXX_COMPILER=$(CXX)     \
+        -DCMAKE_BUILD_TYPE=$(BuildType) \
+        -DCMAKE_CXX_FLAGS=$(CXXFLAGS)   \
+        -DENABLE_ASSERTS=ON             \
+        -DUSE_ASAN=$(Asan)              \
+        -DVERONA_CI_BUILD=ON            \
+        -DRT_TESTS=ON                   \
+        -DVERONA_DOWNLOAD_LLVM=OFF      \
+        -DVERONA_EXTERNAL_LLVM_DIR="$(Pipeline.Workspace)/llvm-linux"
+    workingDirectory: $(VeronaSourceDir)
+    displayName: CMake
+
+  - bash: |
+      set -eo pipefail
+      ninja
+    workingDirectory: $(VeronaBuildDir)
+    displayName: Compile
+
+  - bash: |
+      set -eo pipefail
+      export ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-6.0/bin/llvm-symbolizer
+      export ASAN_OPTIONS="alloc_dealloc_mismatch=0 symbolize=1"
+      ninja check
+    workingDirectory: $(VeronaBuildDir)
+    displayName: Tests
