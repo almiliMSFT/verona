@@ -2,7 +2,7 @@ parameters:
   # extra command-line args to pass to AnyBuild
   - name: ExtraAnyBuildArgs
     type: string
-    default: '--Epoch 1 --WhyCacheMiss --WhyCacheMissOptions CacheDataStoreKey=LLVMVerona'
+    default: '--WhyCacheMiss --WhyCacheMissOptions CacheDataStoreKey=LLVMVerona'
   # number of parallel cmake jobs
   - name: CmakeJobs
     type: number
