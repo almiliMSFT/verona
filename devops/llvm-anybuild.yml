@@ -27,6 +27,8 @@ variables:
   value: https://anybuild$(AbEnvironmentName)neurope.blob.core.windows.net/clientreleases
 - name: AnyBuildRing
   value: Dogfood
+# - name: GOOD_HASH
+#   value: Must be set in Azure DevOps
 
 resources:
   repositories:
@@ -116,8 +118,6 @@ jobs:
   timeoutInMinutes: 120
 
   variables:
-  # - name: GOOD_HASH
-  #   value: Must be set in Azure DevOps
   - name: AbClientDirectory
     value: $HOME/.local/share/Microsoft/AnyBuild
   - name: AbDeploymentJson
