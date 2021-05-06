@@ -30,7 +30,7 @@ jobs:
 ############################################# Linux Builds
 - job: LLVM
   displayName: LLVM Linux
-  condition: eq(parameters.BuildLinux, true)
+  condition: ${{ eq(parameters.BuildLinux, true) }}
   pool:
     name: AnyBuild
     demands:
