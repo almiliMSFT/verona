@@ -97,8 +97,9 @@ jobs:
       call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat"
       cd build
 
+      # TODO: pass $(ExtraAnyBuildArgs)
       set ServicePrincipalPassword=$(LLVMPrincipalPassword)
-      call "%LOCALAPPDATA%\Microsoft\AnyBuild\AnyBuild.cmd" --RemoteExecServiceUri $(AnyBuildEnvironmentUri) --ClientApplicationId $(LLVMPrincipalAppId) --ClientSecretEnvironmentVariable ServicePrincipalPassword --WaitForAgentForever --DoNotUseMachineUtilizationForScheduling --Verbose -- "C:\ProgramData\chocolatey\lib\ninja\tools\ninja.exe" -j12 install
+      call "%LOCALAPPDATA%\Microsoft\AnyBuild\AnyBuild.cmd" --EnableActionCache --WhyCacheMiss --RemoteExecServiceUri $(AnyBuildEnvironmentUri) --ClientApplicationId $(LLVMPrincipalAppId) --ClientSecretEnvironmentVariable ServicePrincipalPassword --WaitForAgentForever --DoNotUseMachineUtilizationForScheduling --Verbose -- "C:\ProgramData\chocolatey\lib\ninja\tools\ninja.exe" -j24 install
     displayName: Compile
 
   - publish: build/install
