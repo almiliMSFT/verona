@@ -26,6 +26,7 @@ jobs:
     name: AnyBuild
     demands:
     - Configuration -equals Release
+    - Agent.OS -equals Linux
   timeoutInMinutes: 120
 
   variables:
