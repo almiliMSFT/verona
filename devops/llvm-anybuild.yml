@@ -37,8 +37,10 @@ jobs:
     value: $HOME/.local/share/AnyBuildDeployment.json
   - name: AbLogsRootDir
     value: $(Build.StagingDirectory)/ab_logs
+  - name: LlvmSourceDirRelativePath
+    value: s/llvm-project
   - name: LlvmSourceDir
-    value: $(Agent.BuildDirectory)/s/llvm-project
+    value: $(Agent.BuildDirectory)/$(LlvmSourceDirRelativePath)
   - name: LlvmBuildDir
     value: $(LlvmSourceDir)/build
   - name: AbExpName
@@ -54,6 +56,7 @@ jobs:
 
   steps:
   - checkout: llvm
+    path: 
 
   - script: |
       set -euo pipefail
@@ -187,7 +190,7 @@ jobs:
 
   - publish: $(AbLogsRootDir)
     displayName: Publish Logs
-    artifact: Logs_$(BuildName)
+    artifact: AnyBuildLogs
     continueOnError: true
     condition: always()
 
@@ -248,13 +251,19 @@ jobs:
         Asan: On
 
   variables:
+  - name: VeronaSourceDirRelativePath
+    value: s/verona
   - name: VeronaSourceDir
-    value: $(Agent.BuildDirectory)/s/verona
+    value: $(Agent.BuildDirectory)/$(VeronaSourceDirRelativePath)
   - name: VeronaBuildDir
     value: $(VeronaSourceDir)/build
 
   steps:
   - checkout: self
+    path: $(VeronaSourceDirRelativePath)
+
+  - download: current
+    artifact: llvm-linux
 
   - bash: |
       set -eo pipefail
@@ -271,9 +280,6 @@ jobs:
       sudo snap install cmake --classic
       sudo pip install wheel OutputCheck
     displayName: 'Dependencies'
-
-  - download: current
-    artifact: llvm-linux
 
   - bash: |
       function log-and-run {
