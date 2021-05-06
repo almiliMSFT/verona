@@ -1,28 +1,12 @@
 parameters:
-  # whether to build the release configuration 
-  - name: BuildRelease
-    type: boolean
-    default: true
-  # whether to build the debug configuration
-  - name: BuildDebug
-    type: boolean
-    default: true
   # extra command-line args to pass to AnyBuild
   - name: ExtraAnyBuildArgs
     type: string
     default: '--Epoch 1 --WhyCacheMiss --WhyCacheMissOptions CacheDataStoreKey=LLVMVerona'
-  # args to pass to cmake when building
-  - name: CmakeBuildToolArgs
-    type: string
-    default: 'install'
   # number of parallel cmake jobs
   - name: CmakeJobs
     type: number
     default: 48
-  # whether to publish installed LLVM binaries as a package
-  - name: PublishPackage
-    type: boolean
-    default: false
 
 resources:
   repositories:
@@ -154,23 +138,23 @@ jobs:
         echo "===== Running build (${{ parameters.CmakeJobs }} CMake jobs) up to ${time_limit} from $(pwd)"
         echo
 
-        env -i \
-          llvmPassword=$(LLVMPrincipalPassword) \
-          HOME="$HOME" \
-          PATH="$PATH" \
+        env -i                                                      \
+          llvmPassword=$(LLVMPrincipalPassword)                     \
+          HOME="$HOME"                                              \
+          PATH="$PATH"                                              \
         timeout "$time_limit" time $(AbClientDirectory)/AnyBuild.sh \
-          --RemoteExecServiceUri $(AnyBuildEnvironmentUri) \
-          --NoCheckForUpdates \
-          --WaitForAgentForever \
-          --DoNotUseMachineUtilizationForScheduling \
-          --Verbose \
-          --RemoteAll \
-          --ClientApplicationId $(LLVMPrincipalAppId) \
-          --ClientSecretEnvironmentVariable llvmPassword \
-          --ShimProcessFilter '$(AbShimFilter)' \
-          ${{ parameters.ExtraAnyBuildArgs }} \
+          --RemoteExecServiceUri $(AnyBuildEnvironmentUri)          \
+          --NoCheckForUpdates                                       \
+          --WaitForAgentForever                                     \
+          --DoNotUseMachineUtilizationForScheduling                 \
+          --Verbose                                                 \
+          --RemoteAll                                               \
+          --ClientApplicationId $(LLVMPrincipalAppId)               \
+          --ClientSecretEnvironmentVariable llvmPassword            \
+          --ShimProcessFilter '$(AbShimFilter)'                     \
+          ${{ parameters.ExtraAnyBuildArgs }}                       \
           -- \
-          $(which cmake) --build . -- -j ${{ parameters.CmakeJobs }} ${{ parameters.CmakeBuildToolArgs }}
+          cmake --build . -- -j ${{ parameters.CmakeJobs }} install
       }
 
       declare failed=0
@@ -236,7 +220,6 @@ jobs:
   - bash: |
       ninja clean
     workingDirectory: $(LlvmBuildDir)
-    condition: and(succeeded(), eq(${{ parameters.PublishPackage }}, true))
     displayName: Delete build outputs to free up space for 'Create package'
 
   - publish: $(AbLogsRootDir)
@@ -247,7 +230,6 @@ jobs:
 
   - publish: $(LlvmBuildDir)/install
     displayName: Publish Package
-    condition: and(succeeded(), eq(${{ parameters.PublishPackage }}, true))
     artifact: llvm-linux
 
   - script: |
