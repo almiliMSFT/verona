@@ -257,6 +257,7 @@ jobs:
 
       # move llvm install folder 
       mlirBuildDir="$(VeronaBuildDir)/$(BuildType)/mlir/build"
+      rm -rf "${mlirBuildDir}"
       mkdir -p "${mlirBuildDir}"
       mv -v "$(LlvmBuildDir)/install" "${mlirBuildDir}"
     workingDirectory: $(VeronaSourceDir)
