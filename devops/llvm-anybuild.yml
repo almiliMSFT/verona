@@ -128,6 +128,7 @@ jobs:
   pool:
     vmImage: 'windows-2019'
   timeoutInMinutes: 120
+  dependsOn: [ LLVM_Windows ]
   strategy:
     matrix:
       RelWithDebInfo:
