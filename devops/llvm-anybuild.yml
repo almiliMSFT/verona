@@ -98,7 +98,7 @@ jobs:
       cd build
 
       set ServicePrincipalPassword=$(LLVMPrincipalPassword)
-      call "%LOCALAPPDATA%\Microsoft\AnyBuild\AnyBuild.cmd" --EnableActionCache ${{ parameters.ExtraAnyBuildArgs }} --RemoteExecServiceUri $(AnyBuildEnvironmentUri) --ClientApplicationId $(LLVMPrincipalAppId) --ClientSecretEnvironmentVariable ServicePrincipalPassword --WaitForAgentForever --DoNotUseMachineUtilizationForScheduling --Verbose -- "C:\ProgramData\chocolatey\lib\ninja\tools\ninja.exe" -j ${{ parameters.CmakeJobs }} install
+      call "%LOCALAPPDATA%\Microsoft\AnyBuild\AnyBuild.cmd" --EnableActionCache ${{ parameters.ExtraAnyBuildArgs }} --RemoteExecServiceUri $(AnyBuildEnvironmentUri) --ClientApplicationId $(LLVMPrincipalAppId) --ClientSecretEnvironmentVariable ServicePrincipalPassword --WaitForAgentForever --DoNotUseMachineUtilizationForScheduling --Verbose -- "C:\ProgramData\chocolatey\lib\ninja\tools\ninja.exe" -j24 install
     displayName: Compile
 
   - publish: build/install
