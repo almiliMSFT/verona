@@ -58,6 +58,8 @@ jobs:
   variables:
   - name: PKG_NAME
     value: verona-llvm-install-x86_64-windows-$(BuildName)-$(GOOD_HASH)
+  - name: AbLogsRootDir
+    value: $(Build.StagingDirectory)\ab_logs
 
   steps:
   - checkout: llvm
@@ -106,6 +108,20 @@ jobs:
     displayName: Publish Package
     artifact: llvm-windows
 
+  - script: |
+      rd /s /q $(AbLogsRootDir)
+      mkdir $(AbLogsRootDir)
+      move *.log $(AbLogsRootDir)
+    workingDirectory: $(LlvmBuildDir)
+    continueOnError: true
+    condition: always()
+    displayName: Extract AnyBuild Logs
+
+  - publish: $(AbLogsRootDir)
+    displayName: Publish Logs
+    artifact: AnyBuildLogs
+    continueOnError: true
+    condition: always()
 
 ############################################# Linux Builds
 - job: LLVM_Linux
@@ -193,72 +209,49 @@ jobs:
     displayName: CMake
 
   - bash: |
-      function extract_logs {
-        local buildDir="$1"
-        local logsDir="$2"
+      declare time_limit="90m"
 
-        echo 
-        echo "====== Extracting logs from '${buildDir}' into '${logsDir}'"
-        echo
+      if [[ -z "${{ parameters.CmakeJobs }}" ]]; then
+        echo "ERROR: Variable 'CmakeJobs' not set"
+        exit 1
+      fi
 
-        rm -rf "$logsDir"
-        mkdir "$logsDir"
-        mv "$buildDir"/*log "$logsDir"
-      }
+      echo "===== Running build (${{ parameters.CmakeJobs }} CMake jobs) up to ${time_limit} from $(pwd)"
+      echo
 
-      function build {
-        local time_limit="$1"
-
-        if [[ -z "${{ parameters.CmakeJobs }}" ]]; then
-          echo "ERROR: Variable 'CmakeJobs' not set"
-          return 1
-        fi
-
-        echo
-        echo "===== Running build (${{ parameters.CmakeJobs }} CMake jobs) up to ${time_limit} from $(pwd)"
-        echo
-
-        env -i                                                      \
-          llvmPassword=$(LLVMPrincipalPassword)                     \
-          HOME="$HOME"                                              \
-          PATH="$PATH"                                              \
-        timeout "$time_limit" time $(AbClientDirectory)/AnyBuild.sh \
-          --RemoteExecServiceUri $(AnyBuildEnvironmentUri)          \
-          --NoCheckForUpdates                                       \
-          --WaitForAgentForever                                     \
-          --DoNotUseMachineUtilizationForScheduling                 \
-          --Verbose                                                 \
-          --RemoteAll                                               \
-          --ClientApplicationId $(LLVMPrincipalAppId)               \
-          --ClientSecretEnvironmentVariable llvmPassword            \
-          --ShimProcessFilter '$(AbShimFilter)'                     \
-          ${{ parameters.ExtraAnyBuildArgs }}                       \
-          -- \
-          cmake --build . -- -j ${{ parameters.CmakeJobs }} install
-      }
-
-      declare failed=0
-      build 90m || failed=$?
-
-      extract_logs "$(pwd)" "$(AbLogsRootDir)"
-
-      exit $failed
-
+      env -i                                                      \
+        llvmPassword=$(LLVMPrincipalPassword)                     \
+        HOME="$HOME"                                              \
+        PATH="$PATH"                                              \
+      timeout "$time_limit" time $(AbClientDirectory)/AnyBuild.sh \
+        --RemoteExecServiceUri $(AnyBuildEnvironmentUri)          \
+        --NoCheckForUpdates                                       \
+        --WaitForAgentForever                                     \
+        --DoNotUseMachineUtilizationForScheduling                 \
+        --Verbose                                                 \
+        --RemoteAll                                               \
+        --ClientApplicationId $(LLVMPrincipalAppId)               \
+        --ClientSecretEnvironmentVariable llvmPassword            \
+        --ShimProcessFilter '$(AbShimFilter)'                     \
+        ${{ parameters.ExtraAnyBuildArgs }}                       \
+        -- \
+        cmake --build . -- -j ${{ parameters.CmakeJobs }} install
     workingDirectory: $(LlvmBuildDir)
-    displayName: Build LLVM with AnyBuild
-
+    displayName: Build with AnyBuild
+  
   - bash: |
       set -euo pipefail
 
-      for abLogFile in $(find "$(AbLogsRootDir)" -name AnyBuild.log); do
-          echo "=== $abLogFile ==="
-          sed -n '/Session telemetry: Finished/,$ p' "$abLogFile"
-          echo
-      done
+      rm -rf "$(AbLogsRootDir)"
+      mkdir "$(AbLogsRootDir)"
+      mv -v *.log "$(AbLogsRootDir)/"
+
+      echo "=== AnyBuild stats ==="
+      sed -n '/Session telemetry: Finished/,$ p' "$(AbLogsRootDir)/AnyBuild.log"
     workingDirectory: $(LlvmBuildDir)
     continueOnError: true
     condition: always()
-    displayName: Print out AnyBuild stats
+    displayName: Extract AnyBuild Logs
 
   - bash: |
       ninja clean
