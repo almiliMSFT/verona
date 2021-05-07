@@ -112,7 +112,7 @@ jobs:
       rd /s /q $(AbLogsRootDir)
       mkdir $(AbLogsRootDir)
       move *.log $(AbLogsRootDir)
-    workingDirectory: $(LlvmBuildDir)
+    workingDirectory: build
     continueOnError: true
     condition: always()
     displayName: Extract AnyBuild Logs
@@ -123,17 +123,64 @@ jobs:
     continueOnError: true
     condition: always()
 
+- job: Verona_Windows
+  displayName: Verona Windows
+  pool:
+    vmImage: 'windows-2019'
+  timeoutInMinutes: 120
+  strategy:
+    matrix:
+      RelWithDebInfo:
+        CXXFLAGS: '/EHsc /D _SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING=1'
+        BuildType: RelWithDebInfo
+      Release:
+        CXXFLAGS: '/EHsc /D _SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING=1'
+        BuildType: Release
+
+  steps:
+  - checkout: self
+
+  - script: |
+      git submodule init
+      git submodule update --depth 1 --recursive
+    displayName: Checkout Submodules
+
+  - script:
+      pip install OutputCheck
+    displayName: Dependencies
+
+  - download: current
+    artifact: llvm-windows
+
+  - script: |
+      mkdir build
+      cd build
+      cmake .. -G"Visual Studio 16 2019" -DENABLE_ASSERTS=ON -DVERONA_CI_BUILD=On -DRT_TESTS=ON -DCMAKE_CXX_FLAGS="$(CXXFLAGS)" -DVERONA_DOWNLOAD_LLVM=OFF -DVERONA_EXTERNAL_LLVM_DIR=$(Pipeline.Workspace)\llvm-windows
+    displayName: 'CMake'
+
+  - task: MSBuild@1
+    displayName: Compile
+    inputs:
+      solution: build/verona.sln
+      msbuildArguments: '/m /p:Configuration=$(BuildType)'
+
+  - task: MSBuild@1
+    displayName: 'Test'
+    inputs:
+      solution: build/check.vcxproj
+      msbuildArguments: '/m /p:Configuration=$(BuildType)'
+
 ############################################# Linux Builds
 - job: LLVM_Linux
   displayName: LLVM Linux
   condition: ${{ eq(parameters.BuildLinux, true) }}
-  pool:
-    vmImage: 'ubuntu-18.04'
   # pool:
-  #   name: AnyBuild
-  #   demands:
-  #   - Configuration -equals Release
-  #   - Agent.OS -equals Linux
+  #   vmImage: 'ubuntu-18.04'
+  pool:
+    name: AnyBuild
+    demands:
+    - Configuration -equals Release
+    - Agent.OS -equals Linux
   timeoutInMinutes: 120
 
   variables:
@@ -285,7 +332,7 @@ jobs:
     continueOnError: false
     displayName: Clean
 
-- job: Verona
+- job: Verona_Linux
   displayName: Verona Linux
   dependsOn: [ LLVM_Linux ]
   pool:
