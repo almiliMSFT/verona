@@ -56,8 +56,6 @@ jobs:
         BuildType: Release
         BuildName: release
   variables:
-  - name: PKG_NAME
-    value: verona-llvm-install-x86_64-windows-$(BuildName)-$(GOOD_HASH)
   - name: AbLogsRootDir
     value: $(Build.StagingDirectory)\ab_logs
 
@@ -106,7 +104,7 @@ jobs:
 
   - publish: build/install
     displayName: Publish Package
-    artifact: llvm-windows
+    artifact: llvm-windows-$(BuildName)
 
   - script: |
       rd /s /q $(AbLogsRootDir)
@@ -151,12 +149,12 @@ jobs:
     displayName: Dependencies
 
   - download: current
-    artifact: llvm-windows
+    artifact: llvm-windows-release
 
   - script: |
       mkdir build
       cd build
-      cmake .. -G"Visual Studio 16 2019" -DENABLE_ASSERTS=ON -DVERONA_CI_BUILD=On -DRT_TESTS=ON -DCMAKE_CXX_FLAGS="$(CXXFLAGS)" -DVERONA_DOWNLOAD_LLVM=OFF -DVERONA_EXTERNAL_LLVM_DIR=$(Pipeline.Workspace)\llvm-windows
+      cmake .. -G"Visual Studio 16 2019" -DENABLE_ASSERTS=ON -DVERONA_CI_BUILD=On -DRT_TESTS=ON -DCMAKE_CXX_FLAGS="$(CXXFLAGS)" -DVERONA_DOWNLOAD_LLVM=OFF -DVERONA_EXTERNAL_LLVM_DIR=$(Pipeline.Workspace)\llvm-windows-release
     displayName: 'CMake'
 
   - task: MSBuild@1
@@ -183,6 +181,15 @@ jobs:
     - Configuration -equals Release
     - Agent.OS -equals Linux
   timeoutInMinutes: 120
+  strategy:
+    matrix:
+      Clang Release:
+        CC: clang
+        CXX: clang++
+        CXXFLAGS: -stdlib=libstdc++
+        BuildType: Release
+        BuildName: release
+        Sanitizer:
 
   variables:
   - name: AbClientDirectory
@@ -252,7 +259,21 @@ jobs:
       rm -rf "$(LlvmBuildDir)"
       mkdir -p "$(LlvmBuildDir)"
       cd "$(LlvmBuildDir)"
-      log-and-run cmake $(LlvmSourceDir)/llvm -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_CXX_FLAGS=-stdlib=libstdc++ -DLLVM_USE_SANITIZER= -DLLVM_ENABLE_PROJECTS="clang;mlir" -DLLVM_TARGETS_TO_BUILD="X86" -DLLVM_ENABLE_ASSERTIONS=ON -DLLVM_ENABLE_LLD=ON -DLLVM_ENABLE_EH=ON -DLLVM_ENABLE_RTTI=ON -DCMAKE_INSTALL_PREFIX=install -DMLIR_INCLUDE_TESTS=OFF
+      log-and-run cmake $(LlvmSourceDir)/llvm \
+        -GNinja                               \
+        -DCMAKE_BUILD_TYPE=$(BuildType)       \
+        -DCMAKE_C_COMPILER=$(CC)              \
+        -DCMAKE_CXX_COMPILER=$(CXX)           \
+        -DCMAKE_CXX_FLAGS=$(CXXFLAGS)         \
+        -DLLVM_USE_SANITIZER=$(Sanitizer)     \
+        -DLLVM_ENABLE_PROJECTS="clang;mlir"   \
+        -DLLVM_TARGETS_TO_BUILD="X86"         \
+        -DLLVM_ENABLE_ASSERTIONS=ON           \
+        -DLLVM_ENABLE_LLD=ON                  \
+        -DLLVM_ENABLE_EH=ON                   \
+        -DLLVM_ENABLE_RTTI=ON                 \
+        -DCMAKE_INSTALL_PREFIX=install        \
+        -DMLIR_INCLUDE_TESTS=OFF
     workingDirectory: $(LlvmSourceDir)
     displayName: CMake
 
@@ -315,16 +336,16 @@ jobs:
   - bash: |
       set -euo pipefail
 
-      tar --sort=name -cf llvm-linux.tar install
+      tar --sort=name -cf install.tar install
 
-      echo "Created archive $(pwd)/llvm-linux.tar with MD5 checksum"
-      md5sum llvm-linux.tar
+      echo "Created archive $(pwd)/install.tar with MD5 checksum"
+      md5sum install.tar
     workingDirectory: $(LlvmBuildDir)
     displayName: Create Package
 
-  - publish: $(LlvmBuildDir)/llvm-linux.tar
+  - publish: $(LlvmBuildDir)/install.tar
     displayName: Publish Package
-    artifact: llvm-linux
+    artifact: llvm-linux-$(BuildName)
 
   - script: |
       set -euo pipefail
@@ -386,18 +407,18 @@ jobs:
   - name: VeronaBuildDir
     value: $(VeronaSourceDir)/build
   - name: LlvmLinuxDownloadDir
-    value: $(Pipeline.Workspace)/llvm-linux
+    value: $(Pipeline.Workspace)/llvm-linux-release
 
   steps:
   - checkout: self
     path: $(VeronaSourceDirRelativePath)
 
   - download: current
-    artifact: llvm-linux
+    artifact: llvm-linux-release
 
   - bash: |
       set -euo pipefail
-      tar xvf llvm-linux.tar
+      tar xvf install.tar
     workingDirectory: $(LlvmLinuxDownloadDir)
     displayName: Extract
 
