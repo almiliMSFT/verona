@@ -117,7 +117,7 @@ jobs:
 
   - publish: $(AbLogsRootDir)
     displayName: Publish Logs
-    artifact: AnyBuildLogs
+    artifact: AnyBuildLogs-llvm-windows-$(BuildName)
     continueOnError: true
     condition: always()
 
@@ -329,7 +329,7 @@ jobs:
 
   - publish: $(AbLogsRootDir)
     displayName: Publish Logs
-    artifact: AnyBuildLogs
+    artifact: AnyBuildLogs-llvm-linux-$(BuildName)
     continueOnError: true
     condition: always()
 
