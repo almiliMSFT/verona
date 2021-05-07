@@ -197,10 +197,8 @@ jobs:
     value: $HOME/.local/share/AnyBuildDeployment.json
   - name: AbLogsRootDir
     value: $(Build.StagingDirectory)/ab_logs
-  - name: LlvmSourceDirRelativePath
-    value: s/llvm-project
   - name: LlvmSourceDir
-    value: $(Agent.BuildDirectory)/$(LlvmSourceDirRelativePath)
+    value: $(Agent.BuildDirectory)/s
   - name: LlvmBuildDir
     value: $(LlvmSourceDir)/build
   - name: AbShimFilter
@@ -208,7 +206,6 @@ jobs:
 
   steps:
   - checkout: llvm
-    path: $(LlvmSourceDirRelativePath)
 
   - script: |
       set -euo pipefail
@@ -394,10 +391,8 @@ jobs:
         Asan: ON
 
   variables:
-  - name: VeronaSourceDirRelativePath
-    value: s/verona
   - name: VeronaSourceDir
-    value: $(Agent.BuildDirectory)/$(VeronaSourceDirRelativePath)
+    value: $(Agent.BuildDirectory)/s
   - name: VeronaBuildDir
     value: $(VeronaSourceDir)/build
   - name: LlvmLinuxDownloadDir
@@ -405,7 +400,6 @@ jobs:
 
   steps:
   - checkout: self
-    path: $(VeronaSourceDirRelativePath)
 
   - download: current
     artifact: llvm-linux-release
