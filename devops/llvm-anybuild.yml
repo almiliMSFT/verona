@@ -93,13 +93,12 @@ jobs:
       "C:\Program Files\CMake\bin\cmake.exe" ..\llvm -GNinja -DCMAKE_BUILD_TYPE=$(BuildType) -DLLVM_ENABLE_PROJECTS="mlir" -DLLVM_TARGETS_TO_BUILD="X86" -DLLVM_ENABLE_ASSERTIONS=ON -DLLVM_ENABLE_EH=ON -DLLVM_ENABLE_RTTI=ON -DCMAKE_INSTALL_PREFIX=install -DMLIR_INCLUDE_TESTS=OFF
     displayName: CMake
 
-  # TODO: pass $(ExtraAnyBuildArgs)
   - script: |
       call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat"
       cd build
 
       set ServicePrincipalPassword=$(LLVMPrincipalPassword)
-      call "%LOCALAPPDATA%\Microsoft\AnyBuild\AnyBuild.cmd" --EnableActionCache --WhyCacheMiss --RemoteExecServiceUri $(AnyBuildEnvironmentUri) --ClientApplicationId $(LLVMPrincipalAppId) --ClientSecretEnvironmentVariable ServicePrincipalPassword --WaitForAgentForever --DoNotUseMachineUtilizationForScheduling --Verbose -- "C:\ProgramData\chocolatey\lib\ninja\tools\ninja.exe" -j24 install
+      call "%LOCALAPPDATA%\Microsoft\AnyBuild\AnyBuild.cmd" --EnableActionCache ${{ parameters.ExtraAnyBuildArgs }} --RemoteExecServiceUri $(AnyBuildEnvironmentUri) --ClientApplicationId $(LLVMPrincipalAppId) --ClientSecretEnvironmentVariable ServicePrincipalPassword --WaitForAgentForever --DoNotUseMachineUtilizationForScheduling --Verbose -- "C:\ProgramData\chocolatey\lib\ninja\tools\ninja.exe" -j ${{ parameters.CmakeJobs }} install
     displayName: Compile
 
   - publish: build/install
@@ -279,11 +278,6 @@ jobs:
 
   - bash: |
       declare time_limit="90m"
-
-      if [[ -z "${{ parameters.CmakeJobs }}" ]]; then
-        echo "ERROR: Variable 'CmakeJobs' not set"
-        exit 1
-      fi
 
       echo "===== Running build (${{ parameters.CmakeJobs }} CMake jobs) up to ${time_limit} from $(pwd)"
       echo
