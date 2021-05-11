@@ -153,8 +153,8 @@ jobs:
       set "USERDOMAIN="
       set "USERDOMAIN_ROAMINGPROFILE="
 
-      set ServicePrincipalPassword=$(ServicePrincipalPassword)
-      call "%LOCALAPPDATA%\Microsoft\AnyBuild\AnyBuild.cmd" --EnableActionCache ${{ parameters.ExtraAnyBuildArgs }} --RemoteExecServiceUri $(AnyBuildEnvironmentUri) --ClientApplicationId $(ServicePrincipalAppId) --ClientSecretEnvironmentVariable ServicePrincipalPassword --WaitForAgentForever --DoNotUseMachineUtilizationForScheduling -- "C:\ProgramData\chocolatey\lib\ninja\tools\ninja.exe" -j ${{ parameters.CmakeJobsWindows }} install
+      set ServicePrincipalPassword=$(LLVMPrincipalPassword)
+      call "%LOCALAPPDATA%\Microsoft\AnyBuild\AnyBuild.cmd" --EnableActionCache ${{ parameters.ExtraAnyBuildArgs }} --RemoteExecServiceUri $(AnyBuildEnvironmentUri) --ClientApplicationId $(LLVMPrincipalAppId) --ClientSecretEnvironmentVariable ServicePrincipalPassword --WaitForAgentForever --DoNotUseMachineUtilizationForScheduling -- "C:\ProgramData\chocolatey\lib\ninja\tools\ninja.exe" -j ${{ parameters.CmakeJobsWindows }} install
     displayName: Compile
 
   - script: |
@@ -291,7 +291,7 @@ jobs:
       echo
 
       env -i                                                      \
-        llvmPassword=$(ServicePrincipalPassword)                  \
+        llvmPassword=$(LLVMPrincipalPassword)                     \
         HOME="$HOME"                                              \
         PATH="$PATH"                                              \
       timeout "$time_limit" time $(AbClientDirectory)/AnyBuild.sh \
@@ -299,7 +299,7 @@ jobs:
         --NoCheckForUpdates                                       \
         --WaitForAgentForever                                     \
         --DoNotUseMachineUtilizationForScheduling                 \
-        --ClientApplicationId $(ServicePrincipalAppId)            \
+        --ClientApplicationId $(LLVMPrincipalAppId)               \
         --ClientSecretEnvironmentVariable llvmPassword            \
         ${{ parameters.ExtraAnyBuildArgs }}                       \
         -- \
