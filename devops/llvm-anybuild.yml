@@ -30,7 +30,7 @@ parameters:
 
 resources:
   repositories:
-  - repo: self
+  - repository: self
   - repository: llvm
     type: github
     endpoint: LLVMServiceConnection
