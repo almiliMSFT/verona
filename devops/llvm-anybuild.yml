@@ -157,20 +157,34 @@ jobs:
       call "%LOCALAPPDATA%\Microsoft\AnyBuild\AnyBuild.cmd" --EnableActionCache ${{ parameters.ExtraAnyBuildArgs }} --RemoteExecServiceUri $(AnyBuildEnvironmentUri) --ClientApplicationId $(LLVMPrincipalAppId) --ClientSecretEnvironmentVariable ServicePrincipalPassword --WaitForAgentForever --DoNotUseMachineUtilizationForScheduling -- "C:\ProgramData\chocolatey\lib\ninja\tools\ninja.exe" -j ${{ parameters.CmakeJobsWindows }} install
     displayName: Compile
 
-  - script: |
-      rd /s /q $(AbLogsRootDir)
-      mkdir $(AbLogsRootDir)
-      move *.log $(AbLogsRootDir)
-    workingDirectory: build
+  # - script: |
+  #     rd /s /q $(AbLogsRootDir)
+  #     mkdir $(AbLogsRootDir)
+  #     move *.log $(AbLogsRootDir)
+  #   workingDirectory: build
+  #   continueOnError: true
+  #   condition: always()
+  #   displayName: Extract AnyBuild Logs
+  
+  - bash: |
+      set -euo pipefail
+
+      rm -rf "$(AbLogsRootDir)"
+      mkdir "$(AbLogsRootDir)"
+      mv -v *.log "$(AbLogsRootDir)"
+
+      echo "=== AnyBuild stats ==="
+      sed -n '/Session telemetry: Finished/,$ p' "$(AbLogsRootDir)/AnyBuild.log"
+    workingDirectory: $(LlvmBuildDir)
     continueOnError: true
     condition: always()
     displayName: Extract AnyBuild Logs
 
-  - publish: $(AbLogsRootDir)
-    displayName: Publish Logs
-    artifact: AnyBuildLogs-llvm-windows-$(BuildName)-$(Build.BuildId)
-    continueOnError: true
-    condition: always()
+  # - publish: $(AbLogsRootDir)
+  #   displayName: Publish Logs
+  #   artifact: AnyBuildLogs-llvm-windows-$(BuildName)-$(Build.BuildId)
+  #   continueOnError: true
+  #   condition: always()
 
   - script: |
       rd /s /q $(PKG_NAME).tar.gz
@@ -312,7 +326,7 @@ jobs:
 
       rm -rf "$(AbLogsRootDir)"
       mkdir "$(AbLogsRootDir)"
-      mv -v *.log "$(AbLogsRootDir)/"
+      mv -v *.log "$(AbLogsRootDir)"
 
       echo "=== AnyBuild stats ==="
       sed -n '/Session telemetry: Finished/,$ p' "$(AbLogsRootDir)/AnyBuild.log"
@@ -326,11 +340,11 @@ jobs:
     workingDirectory: $(LlvmBuildDir)
     displayName: Delete Build Outputs (to free up space for 'Create package')
 
-  - publish: $(AbLogsRootDir)
-    displayName: Publish Logs
-    artifact: AnyBuildLogs-llvm-linux-$(BuildName)-$(Build.BuildId)
-    continueOnError: true
-    condition: always()
+  # - publish: $(AbLogsRootDir)
+  #   displayName: Publish Logs
+  #   artifact: AnyBuildLogs-llvm-linux-$(BuildName)-$(Build.BuildId)
+  #   continueOnError: true
+  #   condition: always()
 
   - bash: |
       set -euo pipefail
