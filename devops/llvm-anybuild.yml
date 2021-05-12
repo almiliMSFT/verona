@@ -196,26 +196,12 @@ jobs:
   #   continueOnError: true
   #   condition: always()
 
-  - script: |
-      rd /s /q $(PKG_NAME).tar.gz
-      tar.exe -z -c -f $(PKG_NAME).tar.gz build/install
-    displayName: Create Package
-    condition: and(succeeded(), ${{ eq(parameters.UploadPackage, true) }})
-
-  - powershell:
-      Get-FileHash $(PKG_NAME).tar.gz -Algorithm MD5 | Select-Object Hash | Format-Wide > $(PKG_NAME).tar.gz.md5
-    displayName: Create MD5
-    condition: and(succeeded(), ${{ eq(parameters.UploadPackage, true) }})
-
-  - script: |
-      az storage blob upload --container-name llvmbuild --file $(PKG_NAME).tar.gz --name $(PKG_NAME) --connection-string "$(BLOB_CONNECTION_STRING)"
-    displayName: Upload package
-    condition: and(succeeded(), ${{ eq(parameters.UploadPackage, true) }})
-
-  - script: |
-      az storage blob upload --container-name llvmbuild --file $(PKG_NAME).tar.gz.md5 --name $(PKG_NAME).md5 --connection-string "$(BLOB_CONNECTION_STRING)"
-    displayName: Upload MD5
-    condition: and(succeeded(), ${{ eq(parameters.UploadPackage, true) }})
+  - ${{ if parameters.UploadPackage }}:
+    - template: ../steps/tar-and-upload.yml
+      parameters:
+        WorkingDir: $(LlvmSourceDir)
+        InstallDirRelativePath: build/install
+        PackageName: $(PKG_NAME)
 
 ############################################# Linux Builds
 
@@ -357,22 +343,12 @@ jobs:
   #   continueOnError: true
   #   condition: always()
 
-  - bash: |
-      set -euo pipefail
-
-      rm -f $(PKG_NAME).tar.gz
-      tar zcf $(PKG_NAME).tar.gz build/install
-      md5 -r $(PKG_NAME).tar.gz | awk '{print $1}' > $(PKG_NAME).tar.gz.md5
-    workingDirectory: $(LlvmSourceDir)
-    displayName: Create Package
-    condition: and(succeeded(), ${{ eq(parameters.UploadPackage, true) }})
-
-  - script: |
-      set -eo pipefail
-      az storage blob upload --container-name llvmbuild --file $(PKG_NAME).tar.gz --name $(PKG_NAME) --connection-string "$(BLOB_CONNECTION_STRING)"
-      az storage blob upload --container-name llvmbuild --file $(PKG_NAME).tar.gz.md5 --name $(PKG_NAME).md5 --connection-string "$(BLOB_CONNECTION_STRING)"
-    displayName: Upload Package
-    condition: and(succeeded(), ${{ eq(parameters.UploadPackage, true) }})
+  - ${{ if parameters.UploadPackage }}:
+    - template: ../steps/tar-and-upload.yml
+      parameters:
+        WorkingDir: $(LlvmSourceDir)
+        InstallDirRelativePath: build/install
+        PackageName: $(PKG_NAME)
 
 ############################################## MacOS Builds
 - job: LLVM_MacOs
@@ -402,13 +378,6 @@ jobs:
       TargetDir: $(LlvmSourceDir)
       CommitSha: $(LLVM_COMMIT)
 
-  - script: |
-      set -eo pipefail
-      git checkout main
-      git pull
-      git checkout $(LLVM_COMMIT)
-    displayName: 'Move tree to known good LLVM commit for Verona'
-
   - task: CMake@1
     displayName: 'CMake'
     inputs:
@@ -422,15 +391,9 @@ jobs:
     workingDirectory: build
     displayName: 'Compile LLVM & MLIR'
 
-  - script: |
-      set -eo pipefail
-      rm -f $(PKG_NAME).tar.gz
-      tar zcf $(PKG_NAME).tar.gz build/install
-      md5 -r $(PKG_NAME).tar.gz | awk '{print $1}' > $(PKG_NAME).tar.gz.md5
-    displayName: 'Create package'
-
-  - script: |
-      set -eo pipefail
-      az storage blob upload --container-name llvmbuild --file $(PKG_NAME).tar.gz --name $(PKG_NAME) --connection-string "$(BLOB_CONNECTION_STRING)"
-      az storage blob upload --container-name llvmbuild --file $(PKG_NAME).tar.gz.md5 --name $(PKG_NAME).md5 --connection-string "$(BLOB_CONNECTION_STRING)"
-    displayName: 'Upload package'
+  - ${{ if parameters.UploadPackage }}:
+    - template: ../steps/tar-and-upload.yml
+      parameters:
+        WorkingDir: $(LlvmSourceDir)
+        InstallDirRelativePath: build/install
+        PackageName: $(PKG_NAME)
