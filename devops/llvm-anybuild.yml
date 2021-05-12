@@ -121,7 +121,7 @@ jobs:
 
   steps:
   - checkout: none
-  - template: ./step/git-shallow-clone.yml
+  - template: ./steps/git-shallow-clone.yml
     parameters:
       RepoUri: $(LlvmRepoGitUri)
       TargetDir: $(LlvmSourceDir)
