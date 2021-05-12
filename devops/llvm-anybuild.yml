@@ -197,7 +197,7 @@ jobs:
   #   condition: always()
 
   - ${{ if parameters.UploadPackage }}:
-    - template: ../steps/tar-and-upload.yml
+    - template: ./steps/tar-and-upload.yml
       parameters:
         WorkingDir: $(LlvmSourceDir)
         InstallDirRelativePath: build/install
@@ -344,7 +344,7 @@ jobs:
   #   condition: always()
 
   - ${{ if parameters.UploadPackage }}:
-    - template: ../steps/tar-and-upload.yml
+    - template: ./steps/tar-and-upload.yml
       parameters:
         WorkingDir: $(LlvmSourceDir)
         InstallDirRelativePath: build/install
@@ -392,7 +392,7 @@ jobs:
     displayName: 'Compile LLVM & MLIR'
 
   - ${{ if parameters.UploadPackage }}:
-    - template: ../steps/tar-and-upload.yml
+    - template: ./steps/tar-and-upload.yml
       parameters:
         WorkingDir: $(LlvmSourceDir)
         InstallDirRelativePath: build/install
