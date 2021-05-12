@@ -59,9 +59,11 @@ variables:
   value: https://github.com/microsoft/verona
 - name: LlvmRepoGitUri
   value: https://github.com/llvm/llvm-project
+# GOOD_HASH may be set in the pipeline in which case it overrides LLVM_COMMIT 
+# - name: GOOD_HASH
+#   value: ''
 
 jobs:
-
 ### Configure: Determine commits to build
 ###   - outputs VERONA_COMMIT and LLVM_COMMIT that correspond to the latest checked in change in verona@master
 - job: Configure
@@ -75,7 +77,11 @@ jobs:
   - bash: |
       cd verona
       VERONA_COMMIT=$(git rev-parse HEAD)
-      LLVM_COMMIT=$(git submodule | grep llvm-project | cut -f1 -d\ | sed 's/^.//g')
+      if [[ -z "$(GOOD_HASH)" ]]; then
+        LLVM_COMMIT=$(git submodule | grep llvm-project | cut -f1 -d\ | sed 's/^.//g')
+      else
+        LLVM_COMMIT="$(GOOD_HASH)"
+      fi
 
       echo "Setting the following output variables:"
       echo "  VERONA_COMMIT=$VERONA_COMMIT"
@@ -111,11 +117,12 @@ jobs:
     value: verona-llvm-install-x86_64-windows-$(BuildName)-$(LLVM_COMMIT)
 
   steps:
-  - checkout: llvm
-
-  - script: |
-      git checkout --force $(LLVM_COMMIT)
-    displayName: Checkout @ $(LLVM_COMMIT)
+  - checkout: none
+  - template: ./_step-git-shallow-clone.yml
+    parameters:
+      RepoUri: $(LlvmRepoGitUri)
+      TargetDir: $(LlvmSourceDir)
+      CommitSha: $(LLVM_COMMIT)
 
   - powershell: |
       Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
@@ -244,12 +251,12 @@ jobs:
     value: verona-llvm-install-x86_64-linux-$(BuildName)-$(LLVM_COMMIT)
 
   steps:
-  - checkout: llvm
-
-  - bash: |
-      set -euo pipefail
-      git checkout --force $(LLVM_COMMIT)
-    displayName: Checkout @ $(LLVM_COMMIT)
+  - checkout: none
+  - template: ./_step-git-shallow-clone.yml
+    parameters:
+      RepoUri: $(LlvmRepoGitUri)
+      TargetDir: $(LlvmSourceDir)
+      CommitSha: $(LLVM_COMMIT)
 
   - script: |
       set -euo pipefail
@@ -362,3 +369,63 @@ jobs:
       az storage blob upload --container-name llvmbuild --file $(PKG_NAME).tar.gz.md5 --name $(PKG_NAME).md5 --connection-string "$(BLOB_CONNECTION_STRING)"
     displayName: Upload Package
     condition: and(succeeded(), ${{ eq(parameters.UploadPackage, true) }})
+
+############################################## MacOS Builds
+- job: LLVM_MacOs
+  displayName: LLVM MacOS Build
+  condition: and(succeeded(), ${{ eq(parameters.BuildOnMacOs, true) }})
+  pool:
+    vmImage: 'macOS-10.14'
+  timeoutInMinutes: 240
+  strategy:
+    matrix:
+      Release:
+        BuildType: Release
+        BuildName: release
+  variables:
+  - name: LlvmSourceDir
+    value: $(Agent.BuildDirectory)/s
+  - name: LLVM_COMMIT
+    value: $[ dependencies.Configure.outputs['SetCommits.LLVM_COMMIT'] ]
+  - name: PKG_NAME
+    value: verona-llvm-install-x86_64-darwin-$(BuildName)-$(LLVM_COMMIT)
+  steps:
+  - checkout: none
+  - template: ./_step-git-shallow-clone.yml
+    parameters:
+      RepoUri: $(LlvmRepoGitUri)
+      TargetDir: $(LlvmSourceDir)
+      CommitSha: $(LLVM_COMMIT)
+
+  - script: |
+      set -eo pipefail
+      git checkout main
+      git pull
+      git checkout $(LLVM_COMMIT)
+    displayName: 'Move tree to known good LLVM commit for Verona'
+
+  - task: CMake@1
+    displayName: 'CMake'
+    inputs:
+      cmakeArgs: |
+        ../llvm -DCMAKE_BUILD_TYPE=$(BuildType) -DLLVM_ENABLE_PROJECTS="clang;mlir" -DLLVM_TARGETS_TO_BUILD="X86" -DLLVM_ENABLE_ASSERTIONS=ON -DLLVM_ENABLE_EH=ON -DLLVM_ENABLE_RTTI=ON -DCMAKE_INSTALL_PREFIX=install -DMLIR_INCLUDE_TESTS=OFF
+
+  - script: |
+      set -eo pipefail
+      N=$(sysctl -n hw.ncpu)
+      make -j $N install
+    workingDirectory: build
+    displayName: 'Compile LLVM & MLIR'
+
+  - script: |
+      set -eo pipefail
+      rm -f $(PKG_NAME).tar.gz
+      tar zcf $(PKG_NAME).tar.gz build/install
+      md5 -r $(PKG_NAME).tar.gz | awk '{print $1}' > $(PKG_NAME).tar.gz.md5
+    displayName: 'Create package'
+
+  - script: |
+      set -eo pipefail
+      az storage blob upload --container-name llvmbuild --file $(PKG_NAME).tar.gz --name $(PKG_NAME) --connection-string "$(BLOB_CONNECTION_STRING)"
+      az storage blob upload --container-name llvmbuild --file $(PKG_NAME).tar.gz.md5 --name $(PKG_NAME).md5 --connection-string "$(BLOB_CONNECTION_STRING)"
+    displayName: 'Upload package'
