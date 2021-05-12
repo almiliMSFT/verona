@@ -17,8 +17,8 @@ steps:
       set -euo pipefail
       readonly PKG_NAME="${{ parameters.PackageName }}"
       rm -f $PKG_NAME.tar.gz
-      tar zcf $PKG_NAME.tar.gz build/install
-      $(Md5Cmd) $PKG_NAME.tar.gz | awk '{print $1}' > $PKG_NAME.tar.gz.md5
+      tar zcf $PKG_NAME.tar.gz ${{ parameters.InstallDirRelativePath }}
+      ${{ parameters.Md5Cmd }} $PKG_NAME.tar.gz | awk '{print $1}' > $PKG_NAME.tar.gz.md5
     workingDirectory: ${{ parameters.WorkingDir }}
     displayName: Create Package
 
