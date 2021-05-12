@@ -75,7 +75,8 @@ jobs:
   - checkout: self
 
   - bash: |
-      cd verona
+      set -euo pipefail
+
       VERONA_COMMIT=$(git rev-parse HEAD)
       if [[ -z "$(GOOD_HASH)" ]]; then
         LLVM_COMMIT=$(git submodule | grep llvm-project | cut -f1 -d\ | sed 's/^.//g')
@@ -111,6 +112,8 @@ jobs:
     value: $(Build.StagingDirectory)\ab_logs
   - name: LlvmSourceDir
     value: $(Agent.BuildDirectory)\s
+  - name: LlvmBuildDir
+    value: $(LlvmSourceDir)\build
   - name: LLVM_COMMIT
     value: $[ dependencies.Configure.outputs['SetCommits.LLVM_COMMIT'] ]
   - name: PKG_NAME
@@ -118,7 +121,7 @@ jobs:
 
   steps:
   - checkout: none
-  - template: ./_step-git-shallow-clone.yml
+  - template: ./step/git-shallow-clone.yml
     parameters:
       RepoUri: $(LlvmRepoGitUri)
       TargetDir: $(LlvmSourceDir)
@@ -145,7 +148,7 @@ jobs:
       call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
       mkdir build
       cd build
-      cmake ..\llvm -GNinja -DCMAKE_BUILD_TYPE=$(BuildType) -DLLVM_ENABLE_PROJECTS="clang;mlir" -DLLVM_TARGETS_TO_BUILD="X86" -DLLVM_ENABLE_ASSERTIONS=ON -DLLVM_ENABLE_EH=ON -DLLVM_ENABLE_RTTI=ON -DCMAKE_INSTALL_PREFIX=install -DMLIR_INCLUDE_TESTS=OFF
+      cmake ..\llvm -GNinja -DCMAKE_BUILD_TYPE=$(BuildType) -DLLVM_ENABLE_PROJECTS="clang;mlir" -DLLVM_TARGETS_TO_BUILD="X86" -DLLVM_ENABLE_ASSERTIONS=ON -DLLVM_ENABLE_EH=ON -DLLVM_ENABLE_RTTI=ON -DCMAKE_INSTALL_PREFIX=install -DMLIR_INCLUDE_TESTS=OFF -Wno-dev
     displayName: CMake
 
   - script: |
@@ -252,7 +255,7 @@ jobs:
 
   steps:
   - checkout: none
-  - template: ./_step-git-shallow-clone.yml
+  - template: ./steps/git-shallow-clone.yml
     parameters:
       RepoUri: $(LlvmRepoGitUri)
       TargetDir: $(LlvmSourceDir)
@@ -301,7 +304,8 @@ jobs:
         -DLLVM_ENABLE_EH=ON                   \
         -DLLVM_ENABLE_RTTI=ON                 \
         -DCMAKE_INSTALL_PREFIX=install        \
-        -DMLIR_INCLUDE_TESTS=OFF
+        -DMLIR_INCLUDE_TESTS=OFF              \
+        -Wno-dev
     workingDirectory: $(LlvmSourceDir)
     displayName: CMake
 
@@ -374,6 +378,7 @@ jobs:
 - job: LLVM_MacOs
   displayName: LLVM MacOS Build
   condition: and(succeeded(), ${{ eq(parameters.BuildOnMacOs, true) }})
+  dependsOn: [ Configure ]
   pool:
     vmImage: 'macOS-10.14'
   timeoutInMinutes: 240
@@ -391,7 +396,7 @@ jobs:
     value: verona-llvm-install-x86_64-darwin-$(BuildName)-$(LLVM_COMMIT)
   steps:
   - checkout: none
-  - template: ./_step-git-shallow-clone.yml
+  - template: ./steps/git-shallow-clone.yml
     parameters:
       RepoUri: $(LlvmRepoGitUri)
       TargetDir: $(LlvmSourceDir)
@@ -408,7 +413,7 @@ jobs:
     displayName: 'CMake'
     inputs:
       cmakeArgs: |
-        ../llvm -DCMAKE_BUILD_TYPE=$(BuildType) -DLLVM_ENABLE_PROJECTS="clang;mlir" -DLLVM_TARGETS_TO_BUILD="X86" -DLLVM_ENABLE_ASSERTIONS=ON -DLLVM_ENABLE_EH=ON -DLLVM_ENABLE_RTTI=ON -DCMAKE_INSTALL_PREFIX=install -DMLIR_INCLUDE_TESTS=OFF
+        ../llvm -DCMAKE_BUILD_TYPE=$(BuildType) -DLLVM_ENABLE_PROJECTS="clang;mlir" -DLLVM_TARGETS_TO_BUILD="X86" -DLLVM_ENABLE_ASSERTIONS=ON -DLLVM_ENABLE_EH=ON -DLLVM_ENABLE_RTTI=ON -DCMAKE_INSTALL_PREFIX=install -DMLIR_INCLUDE_TESTS=OFF -Wno-dev
 
   - script: |
       set -eo pipefail
