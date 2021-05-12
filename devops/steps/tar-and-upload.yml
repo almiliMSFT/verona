@@ -1,7 +1,3 @@
-###
-### 
-###
-
 parameters:
 - name: WorkingDir
   type: string
