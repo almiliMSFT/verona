@@ -9,6 +9,8 @@ parameters:
   type: string
 - name: PackageName
   type: string
+- name: Md5Cmd
+  type: string
 
 steps:
   - bash: |
@@ -16,7 +18,7 @@ steps:
       readonly PKG_NAME="${{ parameters.PackageName }}"
       rm -f $PKG_NAME.tar.gz
       tar zcf $PKG_NAME.tar.gz build/install
-      md5 -r $PKG_NAME.tar.gz | awk '{print $1}' > $PKG_NAME.tar.gz.md5
+      $(Md5Cmd) $PKG_NAME.tar.gz | awk '{print $1}' > $PKG_NAME.tar.gz.md5
     workingDirectory: ${{ parameters.WorkingDir }}
     displayName: Create Package
 

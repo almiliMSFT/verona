@@ -190,18 +190,13 @@ jobs:
     condition: always()
     displayName: Extract AnyBuild Logs
 
-  # - publish: $(AbLogsRootDir)
-  #   displayName: Publish Logs
-  #   artifact: AnyBuildLogs-llvm-windows-$(BuildName)-$(Build.BuildId)
-  #   continueOnError: true
-  #   condition: always()
-
   - ${{ if parameters.UploadPackage }}:
     - template: ./steps/tar-and-upload.yml
       parameters:
         WorkingDir: $(LlvmSourceDir)
         InstallDirRelativePath: build/install
         PackageName: $(PKG_NAME)
+        Md5Cmd: md5sum
 
 ############################################# Linux Builds
 
@@ -337,18 +332,13 @@ jobs:
     workingDirectory: $(LlvmBuildDir)
     displayName: Delete Build Outputs (to free up space for 'Create package')
 
-  # - publish: $(AbLogsRootDir)
-  #   displayName: Publish Logs
-  #   artifact: AnyBuildLogs-llvm-linux-$(BuildName)-$(Build.BuildId)
-  #   continueOnError: true
-  #   condition: always()
-
   - ${{ if parameters.UploadPackage }}:
     - template: ./steps/tar-and-upload.yml
       parameters:
         WorkingDir: $(LlvmSourceDir)
         InstallDirRelativePath: build/install
         PackageName: $(PKG_NAME)
+        Md5Cmd: md5sum
 
 ############################################## MacOS Builds
 - job: LLVM_MacOs
@@ -397,3 +387,4 @@ jobs:
         WorkingDir: $(LlvmSourceDir)
         InstallDirRelativePath: build/install
         PackageName: $(PKG_NAME)
+        Md5Cmd: md5 -r
