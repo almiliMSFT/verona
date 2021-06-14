@@ -22,7 +22,7 @@ schedules:
 ############################################## Linux Builds
 stages:
 - stage: Linux
-  displayName: Linux Builds
+  displayName: Verona Linux Builds
   dependsOn: []
   jobs:
   - job:
@@ -32,70 +32,42 @@ stages:
     timeoutInMinutes: 120
     strategy:
       matrix:
-        # GCC Debug:
-        #   CC: gcc
-        #   CXX: g++
-        #   CXXFLAGS:
-        #   BuildType: Debug
-        #   Asan: Off
-        #   BuildLLVM: Off
-        # GCC Release:
-        #   CC: gcc
-        #   CXX: g++
-        #   CXXFLAGS:
-        #   Asan: Off
-        #   BuildType: Release
-        #   BuildLLVM: Off
-        # Clang Debug:
-        #   CC: clang
-        #   CXX: clang++
-        #   CXXFLAGS: -stdlib=libstdc++
-        #   BuildType: Debug
-        #   Asan: Off
-        #   BuildLLVM: Off
-        # Clang Release:
-        #   CC: clang
-        #   CXX: clang++
-        #   CXXFLAGS: -stdlib=libstdc++
-        #   Asan: Off
-        #   BuildType: Release
-        #   BuildLLVM: Off
-        # Clang Debug (ASAN):
-        #   CC: clang
-        #   CXX: clang++
-        #   CXXFLAGS: -stdlib=libstdc++
-        #   BuildType: Debug
-        #   Asan: On
-        #   BuildLLVM: Off
-        # Clang Release (ASAN):
-        #   CC: clang
-        #   CXX: clang++
-        #   CXXFLAGS: -stdlib=libstdc++
-        #   BuildType: Release
-        #   Asan: On
-        #   BuildLLVM: Off
-        # GCC Release + LLVM:
-        #   CC: gcc
-        #   CXX: g++
-        #   CXXFLAGS:
-        #   Asan: OFF
-        #   BuildType: Release
-        #   BuildLLVM: On
-        Clang Debug (ASAN) + LLVM:
+        GCC Debug:
+          CC: gcc
+          CXX: g++
+          CXXFLAGS:
+          BuildType: Debug
+          Asan: Off
+        GCC Release:
+          CC: gcc
+          CXX: g++
+          CXXFLAGS:
+          Asan: Off
+          BuildType: Release
+        Clang Debug:
           CC: clang
           CXX: clang++
           CXXFLAGS: -stdlib=libstdc++
           BuildType: Debug
-          Asan: ON
-          BuildLLVM: On
-
-    variables:
-      LLVM_CC: clang
-      LLVM_CXX: clang++
-      LLVM_CXXFLAGS: -stdlib=libstdc++
-      LLVM_BuildType: Release
-      LLVM_Sanitizer:
-
+          Asan: Off
+        Clang Release:
+          CC: clang
+          CXX: clang++
+          CXXFLAGS: -stdlib=libstdc++
+          Asan: Off
+          BuildType: Release
+        Clang Debug (ASAN):
+          CC: clang
+          CXX: clang++
+          CXXFLAGS: -stdlib=libstdc++
+          BuildType: Debug
+          Asan: On
+        Clang Release (ASAN):
+          CC: clang
+          CXX: clang++
+          CXXFLAGS: -stdlib=libstdc++
+          BuildType: Release
+          Asan: On
     steps:
     - checkout: self
 
@@ -113,6 +85,89 @@ stages:
         sudo snap install cmake --classic
         sudo pip install wheel OutputCheck
       displayName: 'Dependencies'
+
+    - task: CMake@1
+      displayName: 'CMake'
+      inputs:
+        cmakeArgs: |
+          .. -GNinja -DCMAKE_BUILD_TYPE=$(BuildType) -DCMAKE_CXX_FLAGS=$(CXXFLAGS) -DENABLE_ASSERTS=ON -DUSE_ASAN=$(Asan) -DVERONA_CI_BUILD=On -DRT_TESTS=ON
+
+    - script: |
+        set -eo pipefail
+        ninja
+      workingDirectory: build
+      displayName: 'Compile'
+
+    - script: |
+        set -eo pipefail
+        export ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-6.0/bin/llvm-symbolizer
+        export ASAN_OPTIONS="alloc_dealloc_mismatch=0 symbolize=1"
+        ninja check
+      workingDirectory: build
+      displayName: 'Tests'
+
+- stage: LinuxFull
+  displayName: Verona + LLVM Linux Builds
+  dependsOn: []
+  jobs:
+  - job:
+    displayName: Linux
+    pool:
+      vmImage: 'ubuntu-20.04'
+    timeoutInMinutes: 120
+    strategy:
+      matrix:
+        GCC Debug:
+          CC: gcc
+          CXX: g++
+          CXXFLAGS:
+          BuildType: Debug
+          Asan: Off
+        # GCC Release:
+        #   CC: gcc
+        #   CXX: g++
+        #   CXXFLAGS:
+        #   Asan: Off
+        #   BuildType: Release
+        # Clang Debug:
+        #   CC: clang
+        #   CXX: clang++
+        #   CXXFLAGS: -stdlib=libstdc++
+        #   BuildType: Debug
+        #   Asan: Off
+        # Clang Release:
+        #   CC: clang
+        #   CXX: clang++
+        #   CXXFLAGS: -stdlib=libstdc++
+        #   Asan: Off
+        #   BuildType: Release
+        # Clang Debug (ASAN):
+        #   CC: clang
+        #   CXX: clang++
+        #   CXXFLAGS: -stdlib=libstdc++
+        #   BuildType: Debug
+        #   Asan: On
+        # Clang Release (ASAN):
+        #   CC: clang
+        #   CXX: clang++
+        #   CXXFLAGS: -stdlib=libstdc++
+        #   BuildType: Release
+        #   Asan: On
+
+    variables:
+      - template: ./vars/anybuild-vars.yml
+      - template: ./vars/llvm-vars.yml
+
+    steps:
+    - checkout: self
+
+    - script: |
+        set -eo pipefail
+        git submodule init
+        git submodule update --depth 1 --recursive
+      displayName: 'Checkout submodules'
+
+    - template: ./steps/install-dependencies-linux.yml
 
     - bash: |
         set -euo pipefail
@@ -133,41 +188,34 @@ stages:
 
     - bash: |
         set -euo pipefail
-        cmake_args=(
-          ..
-          -GNinja
-          -DCMAKE_BUILD_TYPE=$(BuildType)
-          -DCMAKE_CXX_FLAGS=$(CXXFLAGS)
-          -DENABLE_ASSERTS=ON
-          -DUSE_ASAN=$(Asan)
-          -DVERONA_CI_BUILD=On
-          -DRT_TESTS=ON)
-
-        if [[ "$(BuildLLVM)" == "On" || "$(BuildLLVM)" == "ON" ]]; then
-          cmake_args+=(
-            -DVERONA_DOWNLOAD_LLVM=OFF
-            -DLLVM_EXTRA_CMAKE_ARGS="-Wno-dev -DCMAKE_C_COMPILER=$(LLVM_CC) -DCMAKE_CXX_COMPILER=$(LLVM_CXX) -DCMAKE_BUILD_TYPE=$(LLVM_BuildType) -DCMAKE_CXX_FLAGS=$(LLVM_CXXFLAGS) -DLLVM_USE_SANITIZER=$(LLVM_Sanitizer) -DMLIR_INCLUDE_TESTS=OFF"
-          )
-        fi
 
         mkdir -p build
         cd build
-        cmake "${cmake_args[@]}"
+        cmake                                      \
+          ..                                       \
+          -GNinja                                  \
+          -DCMAKE_BUILD_TYPE=$(BuildType)          \
+          -DCMAKE_CXX_FLAGS=$(CXXFLAGS)            \
+          -DENABLE_ASSERTS=ON                      \
+          -DUSE_ASAN=$(Asan)                       \
+          -DVERONA_CI_BUILD=On                     \
+          -DRT_TESTS=ON                            \
+          -DVERONA_DOWNLOAD_LLVM=OFF               \
+          -DLLVM_EXTRA_CMAKE_ARGS="                \
+            -Wno-dev                               \
+            -DCMAKE_C_COMPILER=$(LLVM_CC)          \
+            -DCMAKE_CXX_COMPILER=$(LLVM_CXX)       \
+            -DCMAKE_BUILD_TYPE=$(LLVM_BuildType)   \
+            -DCMAKE_CXX_FLAGS=$(LLVM_CXXFLAGS)     \
+            -DLLVM_USE_SANITIZER=$(LLVM_Sanitizer) \
+            -DMLIR_INCLUDE_TESTS=OFF"
       displayName: CMake
-
-    - script: |
-        set -eo pipefail
-        ninja
-      workingDirectory: build
-      condition: and(succeeded(), not(variables['BuildLLVM']))
-      displayName: Compile
 
     - template: ./steps/anybuild-linux.yml
       parameters:
         BuildName: Verona-$(BuildType)-$(CC)-Asan$(Asan)-AnyBuild
         BuildCommandLine: env CMAKE_BUILD_PARALLEL_LEVEL=${{ parameters.AnyBuildParallelism }} cmake --build .
         WorkingDirectory: build
-        Condition: and(succeeded(), variables['BuildLLVM'])
 
     - script: |
         set -eo pipefail
@@ -179,7 +227,7 @@ stages:
 
 ############################################## Windows Builds
 - stage: Windows
-  displayName: Windows Builds
+  displayName: Verona Windows Builds
   dependsOn: []
   jobs:
   - job:
@@ -234,7 +282,7 @@ stages:
 
 ############################################## MacOS Builds
 - stage: MacOS
-  displayName: macOS Builds
+  displayName: Verona macOS Builds
   dependsOn: []
   jobs:
   - job:

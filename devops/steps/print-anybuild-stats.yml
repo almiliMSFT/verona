@@ -1,9 +1,6 @@
 parameters:
 - name: LogsDir
   type: string
-- name: Condition
-  type: string
-  default: succeeded()
 
 steps:
 - bash: |
@@ -15,5 +12,5 @@ steps:
       sed -n '/Session telemetry: Finished/,$ p' "$logFile"
     fi
   continueOnError: true
-  condition: ${{ parameters.Condition }}
+  condition: always()
   displayName: Print AnyBuild Stats

@@ -1,9 +1,3 @@
-parameters:
-  # number of parallel cmake jobs when building LLVM on Linux
-  - name: AnyBuildParallelism
-    type: number
-    default: 48
-
 resources:
 - repo: self
 
@@ -34,64 +28,36 @@ jobs:
         CXXFLAGS:
         BuildType: Debug
         Asan: Off
-        UseAnyBuild: false
       GCC Release:
         CC: gcc
         CXX: g++
         CXXFLAGS:
         Asan: Off
         BuildType: Release
-        UseAnyBuild: false
       Clang Debug:
         CC: clang
         CXX: clang++
         CXXFLAGS: -stdlib=libstdc++
         BuildType: Debug
         Asan: Off
-        UseAnyBuild: false
       Clang Release:
         CC: clang
         CXX: clang++
         CXXFLAGS: -stdlib=libstdc++
         Asan: Off
         BuildType: Release
-        UseAnyBuild: false
       Clang Debug (ASAN):
         CC: clang
         CXX: clang++
         CXXFLAGS: -stdlib=libstdc++
         BuildType: Debug
         Asan: On
-        UseAnyBuild: false
       Clang Release (ASAN):
         CC: clang
         CXX: clang++
         CXXFLAGS: -stdlib=libstdc++
         BuildType: Release
         Asan: On
-        UseAnyBuild: false
-      GCC Release + LLVM:
-        CC: gcc
-        CXX: g++
-        CXXFLAGS:
-        Asan: OFF
-        BuildType: Release
-        UseAnyBuild: true
-      Clang Debug (ASAN) + LLVM:
-        CC: clang
-        CXX: clang++
-        CXXFLAGS: -stdlib=libstdc++
-        BuildType: Debug
-        Asan: ON
-        UseAnyBuild: true
-
-  variables:
-    LLVM_CC: clang
-    LLVM_CXX: clang++
-    LLVM_CXXFLAGS: -stdlib=libstdc++
-    LLVM_BuildType: Release
-    LLVM_Sanitizer:
-
   steps:
   - checkout: self
 
@@ -110,49 +76,17 @@ jobs:
       sudo pip install wheel OutputCheck
     displayName: 'Dependencies'
 
-  - ${{ if not(variables['UseAnyBuild']) }}:
-    - task: CMake@1
-      displayName: CMake
-      condition: and(succeeded(), not($(UseAnyBuild)))
-      inputs:
-        cmakeArgs: |
-          .. -GNinja -DCMAKE_BUILD_TYPE=$(BuildType) -DCMAKE_CXX_FLAGS=$(CXXFLAGS) -DENABLE_ASSERTS=ON -DUSE_ASAN=$(Asan) -DVERONA_CI_BUILD=On -DRT_TESTS=ON
+  - task: CMake@1
+    displayName: 'CMake'
+    inputs:
+      cmakeArgs: |
+        .. -GNinja -DCMAKE_BUILD_TYPE=$(BuildType) -DCMAKE_CXX_FLAGS=$(CXXFLAGS) -DENABLE_ASSERTS=ON -DUSE_ASAN=$(Asan) -DVERONA_CI_BUILD=On -DRT_TESTS=ON
 
-    - script: |
-        set -eo pipefail
-        ninja
-      workingDirectory: build
-      displayName: Compile
-
-  - ${{ if variables['UseAnyBuild'] }}:
-    - bash: |
-        set -euo pipefail
-
-        # drop an AnyBuild.json config file and use it to ignore the CMAKE_BUILD_PARALLEL_LEVEL variable
-        echo '{"ActionCache": { "MaxParallelLookups": 10, "IgnoredEnvVars": [ "CMAKE_BUILD_PARALLEL_LEVEL" ] }}' | tee AnyBuild.json
-
-        # remove '-march=native'
-        sed -i 's/ -march=native//g' src/rt/CMakeLists.txt
-
-        echo "=============="
-        echo "Patch applied:"
-        echo "=============="
-        echo
-        git diff
-      displayName: Configure AnyBuild
-
-    - task: CMake@1
-      displayName: CMake
-      condition: and(succeeded(), $(UseAnyBuild))
-      inputs:
-        cmakeArgs: |
-          .. -GNinja -DCMAKE_BUILD_TYPE=$(BuildType) -DCMAKE_CXX_FLAGS=$(CXXFLAGS) -DENABLE_ASSERTS=ON -DUSE_ASAN=$(Asan) -DVERONA_CI_BUILD=On -DRT_TESTS=ON -DVERONA_DOWNLOAD_LLVM=OFF -Wno-dev -DLLVM_EXTRA_CMAKE_ARGS="-Wno-dev -DCMAKE_C_COMPILER=$(LLVM_CC) -DCMAKE_CXX_COMPILER=$(LLVM_CXX) -DCMAKE_BUILD_TYPE=$(LLVM_BuildType) -DCMAKE_CXX_FLAGS=$(LLVM_CXXFLAGS) -DLLVM_USE_SANITIZER=$(LLVM_Sanitizer) -DMLIR_INCLUDE_TESTS=OFF"
-
-    - template: ./steps/anybuild-linux.yml
-      parameters:
-        BuildName: Verona-$(BuildType)-$(CC)-Asan$(Asan)-AnyBuild
-        BuildCommandLine: env CMAKE_BUILD_PARALLEL_LEVEL=${{ parameters.AnyBuildParallelism }} cmake --build .
-        WorkingDirectory: build
+  - script: |
+      set -eo pipefail
+      ninja
+    workingDirectory: build
+    displayName: 'Compile'
 
   - script: |
       set -eo pipefail
@@ -160,7 +94,7 @@ jobs:
       export ASAN_OPTIONS="alloc_dealloc_mismatch=0 symbolize=1"
       ninja check
     workingDirectory: build
-    displayName: Tests
+    displayName: 'Tests'
 
 ############################################## Windows Builds
 - job:

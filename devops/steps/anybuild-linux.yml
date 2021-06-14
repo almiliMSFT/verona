@@ -16,6 +16,13 @@ steps:
 - bash: |
     set -euo pipefail
 
+    echo "=== Downloading AnyBuild from $(AnyBuildSource)"
+    wget -O- $(AnyBuildSource)/bootstrapper.sh | bash -s $(AnyBuildSource) $(AnyBuildRing)
+  displayName: Install AnyBuild Client
+
+- bash: |
+    set -euo pipefail
+
     echo "===== Running '${{ parameters.BuildCommandLine }}' from $(pwd)"
     echo
 
@@ -39,9 +46,7 @@ steps:
       ${{ parameters.BuildCommandLine }}
   workingDirectory: ${{ parameters.WorkingDirectory }}
   displayName: AnyBuild ${{ parameters.BuildName }}
-  condition: ${{ parameters.Condition }}
 
 - template: ./print-anybuild-stats.yml
   parameters:
     LogsDir: ${{ parameters.WorkingDirectory }}
-    Condition: ${{ parameters.Condition }}
