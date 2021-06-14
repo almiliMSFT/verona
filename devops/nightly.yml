@@ -67,6 +67,8 @@ jobs:
       git submodule update --depth 1 --recursive
     displayName: 'Checkout submodules'
 
+  - template: ./steps/install-dependencies-linux.yml
+
   - script: |
       set -eo pipefail
       sudo apt-get update
@@ -88,13 +90,9 @@ jobs:
     workingDirectory: build
     displayName: 'Compile'
 
-  - script: |
-      set -eo pipefail
-      export ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-6.0/bin/llvm-symbolizer
-      export ASAN_OPTIONS="alloc_dealloc_mismatch=0 symbolize=1"
-      ninja check
-    workingDirectory: build
-    displayName: 'Tests'
+  - template: ./steps/linux/test.yml
+    parameters:
+      WorkingDirectory: build
 
 ############################################## Windows Builds
 - job:

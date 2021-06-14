@@ -77,14 +77,7 @@ stages:
         git submodule update --depth 1 --recursive
       displayName: 'Checkout submodules'
 
-    - script: |
-        set -eo pipefail
-        sudo apt-get update
-        sudo apt-get install -y ninja-build
-        sudo apt-get remove --purge cmake
-        sudo snap install cmake --classic
-        sudo pip install wheel OutputCheck
-      displayName: 'Dependencies'
+    - template: ./steps/linux/dependencies.yml
 
     - task: CMake@1
       displayName: 'CMake'
@@ -98,13 +91,9 @@ stages:
       workingDirectory: build
       displayName: 'Compile'
 
-    - script: |
-        set -eo pipefail
-        export ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-6.0/bin/llvm-symbolizer
-        export ASAN_OPTIONS="alloc_dealloc_mismatch=0 symbolize=1"
-        ninja check
-      workingDirectory: build
-      displayName: 'Tests'
+    - template: ./steps/linux/test.yml
+      parameters:
+        WorkingDirectory: build
 
 - stage: LinuxFull
   displayName: Verona + LLVM Linux Builds
@@ -167,7 +156,7 @@ stages:
         git submodule update --depth 1 --recursive
       displayName: 'Checkout submodules'
 
-    - template: ./steps/install-dependencies-linux.yml
+    - template: ./steps/linux/dependencies.yml
 
     - bash: |
         set -euo pipefail
@@ -211,19 +200,15 @@ stages:
             -DMLIR_INCLUDE_TESTS=OFF"
       displayName: CMake
 
-    - template: ./steps/anybuild-linux.yml
+    - template: ./steps/linux/anybuild.yml
       parameters:
         BuildName: Verona-$(BuildType)-$(CC)-Asan$(Asan)-AnyBuild
         BuildCommandLine: env CMAKE_BUILD_PARALLEL_LEVEL=${{ parameters.AnyBuildParallelism }} cmake --build .
         WorkingDirectory: build
 
-    - script: |
-        set -eo pipefail
-        export ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-6.0/bin/llvm-symbolizer
-        export ASAN_OPTIONS="alloc_dealloc_mismatch=0 symbolize=1"
-        ninja check
-      workingDirectory: build
-      displayName: Tests
+    - template: ./steps/linux/test.yml
+      parameters:
+        WorkingDirectory: build
 
 ############################################## Windows Builds
 - stage: Windows
