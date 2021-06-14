@@ -240,32 +240,11 @@ jobs:
     workingDirectory: $(LlvmSourceDir)
     displayName: CMake
 
-  - bash: |
-      declare time_limit="90m"
-
-      echo "===== Running build (${{ parameters.CmakeJobsLinux }} CMake jobs) up to ${time_limit} from $(pwd)"
-      echo
-
-      env -i                                                      \
-        llvmPassword=$(LLVMPrincipalPassword)                     \
-        HOME="$HOME"                                              \
-        PATH="$PATH"                                              \
-      timeout "$time_limit" time $(AbClientDirectory)/AnyBuild.sh \
-        --RemoteExecServiceUri $(AnyBuildEnvironmentUri)          \
-        --NoCheckForUpdates                                       \
-        --WaitForAgentForever                                     \
-        --DoNotUseMachineUtilizationForScheduling                 \
-        --ClientApplicationId $(LLVMPrincipalAppId)               \
-        --ClientSecretEnvironmentVariable llvmPassword            \
-        ${{ parameters.ExtraAnyBuildArgs }}                       \
-        -- \
-        cmake --build . -- -j ${{ parameters.CmakeJobsLinux }} install
-    workingDirectory: $(LlvmBuildDir)
-    displayName: Compile
-
-  - template: ./steps/print-anybuild-stats.yml
+  - template: ./steps/linux/anybuild.yml
     parameters:
-      LogsDir: $(LlvmBuildDir)
+      BuildName: LLVM-$(BuildType)-$(CC)-Asan$(Asan)-AnyBuild
+      BuildCommandLine: cmake --build . -- -j ${{ parameters.CmakeJobsLinux }} install
+      WorkingDirectory: $(LlvmBuildDir)
 
   - bash: |
       ninja clean

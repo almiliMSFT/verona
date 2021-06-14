@@ -106,42 +106,18 @@ stages:
     timeoutInMinutes: 120
     strategy:
       matrix:
-        GCC Debug:
+        GCC Release:
           CC: gcc
           CXX: g++
           CXXFLAGS:
-          BuildType: Debug
           Asan: Off
-        # GCC Release:
-        #   CC: gcc
-        #   CXX: g++
-        #   CXXFLAGS:
-        #   Asan: Off
-        #   BuildType: Release
-        # Clang Debug:
-        #   CC: clang
-        #   CXX: clang++
-        #   CXXFLAGS: -stdlib=libstdc++
-        #   BuildType: Debug
-        #   Asan: Off
-        # Clang Release:
-        #   CC: clang
-        #   CXX: clang++
-        #   CXXFLAGS: -stdlib=libstdc++
-        #   Asan: Off
-        #   BuildType: Release
-        # Clang Debug (ASAN):
-        #   CC: clang
-        #   CXX: clang++
-        #   CXXFLAGS: -stdlib=libstdc++
-        #   BuildType: Debug
-        #   Asan: On
-        # Clang Release (ASAN):
-        #   CC: clang
-        #   CXX: clang++
-        #   CXXFLAGS: -stdlib=libstdc++
-        #   BuildType: Release
-        #   Asan: On
+          BuildType: Release
+        Clang Debug (ASAN):
+          CC: clang
+          CXX: clang++
+          CXXFLAGS: -stdlib=libstdc++
+          BuildType: Debug
+          Asan: On
 
     variables:
       - template: ./vars/anybuild-vars.yml
