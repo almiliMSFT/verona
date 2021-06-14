@@ -173,7 +173,6 @@ stages:
         echo
         git diff
       displayName: Configure AnyBuild
-      condition: and(succeeded(), variables['BuildLLVM'])
 
     - bash: |
         set -euo pipefail
