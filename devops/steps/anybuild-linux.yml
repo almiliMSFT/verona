@@ -28,48 +28,48 @@ jobs:
   timeoutInMinutes: 120
   strategy:
     matrix:
-      GCC Debug:
-        CC: gcc
-        CXX: g++
-        CXXFLAGS:
-        BuildType: Debug
-        Asan: Off
-        UseAnyBuild: false
-      GCC Release:
-        CC: gcc
-        CXX: g++
-        CXXFLAGS:
-        Asan: Off
-        BuildType: Release
-        UseAnyBuild: false
-      Clang Debug:
-        CC: clang
-        CXX: clang++
-        CXXFLAGS: -stdlib=libstdc++
-        BuildType: Debug
-        Asan: Off
-        UseAnyBuild: false
-      Clang Release:
-        CC: clang
-        CXX: clang++
-        CXXFLAGS: -stdlib=libstdc++
-        Asan: Off
-        BuildType: Release
-        UseAnyBuild: false
-      Clang Debug (ASAN):
-        CC: clang
-        CXX: clang++
-        CXXFLAGS: -stdlib=libstdc++
-        BuildType: Debug
-        Asan: On
-        UseAnyBuild: false
-      Clang Release (ASAN):
-        CC: clang
-        CXX: clang++
-        CXXFLAGS: -stdlib=libstdc++
-        BuildType: Release
-        Asan: On
-        UseAnyBuild: false
+      # GCC Debug:
+      #   CC: gcc
+      #   CXX: g++
+      #   CXXFLAGS:
+      #   BuildType: Debug
+      #   Asan: Off
+      #   UseAnyBuild: false
+      # GCC Release:
+      #   CC: gcc
+      #   CXX: g++
+      #   CXXFLAGS:
+      #   Asan: Off
+      #   BuildType: Release
+      #   UseAnyBuild: false
+      # Clang Debug:
+      #   CC: clang
+      #   CXX: clang++
+      #   CXXFLAGS: -stdlib=libstdc++
+      #   BuildType: Debug
+      #   Asan: Off
+      #   UseAnyBuild: false
+      # Clang Release:
+      #   CC: clang
+      #   CXX: clang++
+      #   CXXFLAGS: -stdlib=libstdc++
+      #   Asan: Off
+      #   BuildType: Release
+      #   UseAnyBuild: false
+      # Clang Debug (ASAN):
+      #   CC: clang
+      #   CXX: clang++
+      #   CXXFLAGS: -stdlib=libstdc++
+      #   BuildType: Debug
+      #   Asan: On
+      #   UseAnyBuild: false
+      # Clang Release (ASAN):
+      #   CC: clang
+      #   CXX: clang++
+      #   CXXFLAGS: -stdlib=libstdc++
+      #   BuildType: Release
+      #   Asan: On
+      #   UseAnyBuild: false
       GCC Release + LLVM:
         CC: gcc
         CXX: g++
