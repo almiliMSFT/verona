@@ -1,260 +1,42 @@
 parameters:
-  # number of parallel cmake jobs when building LLVM on Linux
-  - name: AnyBuildParallelism
-    type: number
-    default: 48
+  - name: BuildName
+    type: string
+  - name: BuildCommandLine
+    type: string
+  - name: WorkingDirectory
+    type: string
+  - name: ExtraAnyBuildArgs
+    type: string
+    default: --WhyCacheMiss
 
-resources:
-- repo: self
+steps:
+- bash: |
+    set -euo pipefail
 
-trigger: none
+    echo "===== Running '${{ parameters.BuildCommandLine }}' from $(pwd)"
+    echo
 
-pr:
-- master
+    readonly abClientExe="$(Ab.AnyBuildCIDownloadDir)/$(Ab.LinuxDropArtifactName)/AnyBuild/AnyBuild"
 
-schedules:
-- cron: "0 0 * * *"
-  displayName: Daily midnight build
-  branches:
-    include:
-    - master
+    env -i                                                                \
+      SECRET=$(LLVMPrincipalPassword)                                     \
+      HOME="$HOME"                                                        \
+      PATH="$PATH"                                                        \
+    "$abClientExe"                                                        \
+      --RemoteExecServiceUri $(AnyBuildEnvironmentUri)                    \
+      --NoCheckForUpdates                                                 \
+      --WaitForAgentForever                                               \
+      --DoNotUseMachineUtilizationForScheduling                           \
+      --ClientApplicationId $(LLVMPrincipalAppId)                         \
+      --ClientSecretEnvironmentVariable SECRET                            \
+      --ExperimentName "${{ parameters.BuildName }}"                      \
+      ${{ parameters.ExtraAnyBuildArgs }}                                 \
+      --WhyCacheMissOptions CacheDataStoreKey=${{ parameters.BuildName }} \
+      --                                                                  \
+      ${{ parameters.BuildCommandLine }}
+  workingDirectory: ${{ parameters.WorkingDirectory }}
+  displayName: AnyBuild ${{ parameters.BuildName }}
 
-jobs:
-############################################## Linux Builds
-- job:
-  displayName: Linux
-  pool:
-    vmImage: 'ubuntu-20.04'
-  timeoutInMinutes: 120
-  strategy:
-    matrix:
-      # GCC Debug:
-      #   CC: gcc
-      #   CXX: g++
-      #   CXXFLAGS:
-      #   BuildType: Debug
-      #   Asan: Off
-      #   UseAnyBuild: false
-      # GCC Release:
-      #   CC: gcc
-      #   CXX: g++
-      #   CXXFLAGS:
-      #   Asan: Off
-      #   BuildType: Release
-      #   UseAnyBuild: false
-      # Clang Debug:
-      #   CC: clang
-      #   CXX: clang++
-      #   CXXFLAGS: -stdlib=libstdc++
-      #   BuildType: Debug
-      #   Asan: Off
-      #   UseAnyBuild: false
-      # Clang Release:
-      #   CC: clang
-      #   CXX: clang++
-      #   CXXFLAGS: -stdlib=libstdc++
-      #   Asan: Off
-      #   BuildType: Release
-      #   UseAnyBuild: false
-      # Clang Debug (ASAN):
-      #   CC: clang
-      #   CXX: clang++
-      #   CXXFLAGS: -stdlib=libstdc++
-      #   BuildType: Debug
-      #   Asan: On
-      #   UseAnyBuild: false
-      # Clang Release (ASAN):
-      #   CC: clang
-      #   CXX: clang++
-      #   CXXFLAGS: -stdlib=libstdc++
-      #   BuildType: Release
-      #   Asan: On
-      #   UseAnyBuild: false
-      GCC Release + LLVM:
-        CC: gcc
-        CXX: g++
-        CXXFLAGS:
-        Asan: OFF
-        BuildType: Release
-        UseAnyBuild: true
-      Clang Debug (ASAN) + LLVM:
-        CC: clang
-        CXX: clang++
-        CXXFLAGS: -stdlib=libstdc++
-        BuildType: Debug
-        Asan: ON
-        UseAnyBuild: true
-
-  variables:
-    LLVM_CC: clang
-    LLVM_CXX: clang++
-    LLVM_CXXFLAGS: -stdlib=libstdc++
-    LLVM_BuildType: Release
-    LLVM_Sanitizer:
-
-  steps:
-  - checkout: self
-
-  - script: |
-      set -eo pipefail
-      git submodule init
-      git submodule update --depth 1 --recursive
-    displayName: 'Checkout submodules'
-
-  - script: |
-      set -eo pipefail
-      sudo apt-get update
-      sudo apt-get install -y ninja-build
-      sudo apt-get remove --purge cmake
-      sudo snap install cmake --classic
-      sudo pip install wheel OutputCheck
-    displayName: 'Dependencies'
-
-  - ${{ if not(variables['UseAnyBuild']) }}:
-    - task: CMake@1
-      displayName: CMake
-      condition: and(succeeded(), not($(UseAnyBuild)))
-      inputs:
-        cmakeArgs: |
-          .. -GNinja -DCMAKE_BUILD_TYPE=$(BuildType) -DCMAKE_CXX_FLAGS=$(CXXFLAGS) -DENABLE_ASSERTS=ON -DUSE_ASAN=$(Asan) -DVERONA_CI_BUILD=On -DRT_TESTS=ON
-
-    - script: |
-        set -eo pipefail
-        ninja
-      workingDirectory: build
-      displayName: Compile
-
-  - ${{ if variables['UseAnyBuild'] }}:
-    - bash: |
-        set -euo pipefail
-
-        # drop an AnyBuild.json config file and use it to ignore the CMAKE_BUILD_PARALLEL_LEVEL variable
-        echo '{"ActionCache": { "MaxParallelLookups": 10, "IgnoredEnvVars": [ "CMAKE_BUILD_PARALLEL_LEVEL" ] }}' | tee AnyBuild.json
-
-        # remove '-march=native'
-        sed -i 's/ -march=native//g' src/rt/CMakeLists.txt
-
-        echo "=============="
-        echo "Patch applied:"
-        echo "=============="
-        echo
-        git diff
-      displayName: Configure AnyBuild
-
-    - task: CMake@1
-      displayName: CMake
-      condition: and(succeeded(), $(UseAnyBuild))
-      inputs:
-        cmakeArgs: |
-          .. -GNinja -DCMAKE_BUILD_TYPE=$(BuildType) -DCMAKE_CXX_FLAGS=$(CXXFLAGS) -DENABLE_ASSERTS=ON -DUSE_ASAN=$(Asan) -DVERONA_CI_BUILD=On -DRT_TESTS=ON -DVERONA_DOWNLOAD_LLVM=OFF -Wno-dev -DLLVM_EXTRA_CMAKE_ARGS="-Wno-dev -DCMAKE_C_COMPILER=$(LLVM_CC) -DCMAKE_CXX_COMPILER=$(LLVM_CXX) -DCMAKE_BUILD_TYPE=$(LLVM_BuildType) -DCMAKE_CXX_FLAGS=$(LLVM_CXXFLAGS) -DLLVM_USE_SANITIZER=$(LLVM_Sanitizer) -DMLIR_INCLUDE_TESTS=OFF"
-
-    - template: ./steps/anybuild-linux.yml
-      parameters:
-        BuildName: Verona-$(BuildType)-$(CC)-Asan$(Asan)-AnyBuild
-        BuildCommandLine: env CMAKE_BUILD_PARALLEL_LEVEL=${{ parameters.AnyBuildParallelism }} cmake --build .
-        WorkingDirectory: build
-
-  - script: |
-      set -eo pipefail
-      export ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-6.0/bin/llvm-symbolizer
-      export ASAN_OPTIONS="alloc_dealloc_mismatch=0 symbolize=1"
-      ninja check
-    workingDirectory: build
-    displayName: Tests
-
-############################################## Windows Builds
-- job:
-  displayName: Windows
-  pool:
-    vmImage: 'windows-2019'
-  timeoutInMinutes: 120
-  strategy:
-    matrix:
-      RelWithDebInfo:
-        CXXFLAGS: '/EHsc /D _SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING=1'
-        BuildType: RelWithDebInfo
-      Release:
-        CXXFLAGS: '/EHsc /D _SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING=1'
-        BuildType: Release
-
-  steps:
-  - checkout: self
-
-  - script: |
-      git submodule init
-      git submodule update --depth 1 --recursive
-    displayName: 'Checkout submodules'
-
-  - script:
-      pip install OutputCheck
-    displayName: 'Dependencies'
-
-
-  - script: |
-      mkdir build
-      cd build
-      cmake .. -G"Visual Studio 16 2019" -DENABLE_ASSERTS=ON -DVERONA_CI_BUILD=On -DRT_TESTS=ON -DCMAKE_CXX_FLAGS="$(CXXFLAGS)"
-    displayName: 'CMake'
-
-  - task: MSBuild@1
-    displayName: 'Compile'
-    inputs:
-      solution: build/verona.sln
-      msbuildArguments: '/m /p:Configuration=$(BuildType)'
-
-  - task: MSBuild@1
-    displayName: 'Test'
-    inputs:
-      solution: build/check.vcxproj
-      msbuildArguments: '/m /p:Configuration=$(BuildType)'
-
-  - task: ms.vss-governance-buildtask.governance-build-task-component-detection.ComponentGovernanceComponentDetection@0
-    displayName: 'Component Detection'
-    inputs:
-      failOnAlert: true
-
-############################################## MacOS Builds
-- job:
-  displayName: macOS
-  pool:
-    vmImage: 'macOS-10.14'
-  timeoutInMinutes: 120
-  strategy:
-    matrix:
-      Debug:
-        BuildType: Debug
-      Release:
-        BuildType: Release
-
-  steps:
-  - checkout: self
-
-  - script: |
-      set -eo pipefail
-      git submodule init
-      git submodule update --depth 1 --recursive
-    displayName: 'Checkout submodules'
-
-  - script: |
-      set -eo pipefail
-      sudo pip3 install wheel OutputCheck
-    displayName:  'Dependencies'
-
-  - task: CMake@1
-    displayName: 'CMake'
-    inputs:
-      cmakeArgs: |
-        .. -DCMAKE_BUILD_TYPE=$(BuildType) -DENABLE_ASSERTS=ON -DVERONA_CI_BUILD=On -DRT_TESTS=ON
-
-  - script: |
-      set -eo pipefail
-      N=$(sysctl -n hw.ncpu)
-      make -j $N
-    workingDirectory: build
-    displayName: 'Compile'
-
-  - script: |
-      set -eo pipefail
-      make check
-    workingDirectory: build/
-    displayName: 'Tests'
+- template: ./print-anybuild-stats.yml
+  parameters:
+    LogsDir: ${{ parameters.WorkingDirectory }}
