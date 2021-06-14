@@ -5,6 +5,9 @@ parameters:
     type: string
   - name: WorkingDirectory
     type: string
+  - name: Condition
+    type: string
+    default: succeeded()
   - name: ExtraAnyBuildArgs
     type: string
     default: --WhyCacheMiss
@@ -36,7 +39,9 @@ steps:
       ${{ parameters.BuildCommandLine }}
   workingDirectory: ${{ parameters.WorkingDirectory }}
   displayName: AnyBuild ${{ parameters.BuildName }}
+  condition: ${{ parameters.Condition }}
 
 - template: ./print-anybuild-stats.yml
   parameters:
     LogsDir: ${{ parameters.WorkingDirectory }}
+    Condition: ${{ parameters.Condition }}
