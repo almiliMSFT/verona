@@ -22,7 +22,7 @@ schedules:
 ############################################## Linux Builds
 stages:
 - stage: Linux
-  displayName: Verona Linux Builds
+  displayName: Linux (Verona)
   dependsOn: []
   jobs:
   - job:
@@ -96,7 +96,7 @@ stages:
         WorkingDirectory: build
 
 - stage: LinuxFull
-  displayName: Verona + LLVM Linux Builds
+  displayName: Linux (Verona + LLVM)
   dependsOn: []
   jobs:
   - job:
@@ -212,7 +212,7 @@ stages:
 
 ############################################## Windows Builds
 - stage: Windows
-  displayName: Verona Windows Builds
+  displayName: Windows (Verona)
   dependsOn: []
   jobs:
   - job:
@@ -267,7 +267,7 @@ stages:
 
 ############################################## MacOS Builds
 - stage: MacOS
-  displayName: Verona macOS Builds
+  displayName: macOS (Verona)
   dependsOn: []
   jobs:
   - job:

@@ -1,0 +1,24 @@
+parameters:
+- name: LogsDir
+  type: string
+- name: ArtifactName
+  type: string
+  default: AnyBuildLogs-$(Build.BuildId)
+
+steps:
+- bash: |
+    set -euo pipefail
+
+    rm -rf AnyBuildLogs
+    mkdir AnyBuildLogs
+    mv -v AnyBuild*.log AnyBuildLogs/
+  workingDirectory: ${{ parameters.LogsDir }}
+  continueOnError: true
+  condition: not(canceled())
+  displayName: Extract AnyBuild Logs
+
+- publish: ${{ parameters.LogsDir }}/AnyBuildLogs
+  artifact: ${{ parameters.ArtifactName }}
+  continueOnError: true
+  condition: not(canceled())
+  displayName: Publish AnyBuild Logs

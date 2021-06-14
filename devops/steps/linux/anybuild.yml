@@ -50,3 +50,8 @@ steps:
 - template: ../print-anybuild-stats.yml
   parameters:
     LogsDir: ${{ parameters.WorkingDirectory }}
+
+- template: ../publish-anybuild-logs.yaml
+  parameters:
+    LogsDir: ${{ parameters.WorkingDirectory }}
+    ArtifactName: AnyBuildLogs-${{ parameters.BuildName }}-linux.$(Build.BuildId)
