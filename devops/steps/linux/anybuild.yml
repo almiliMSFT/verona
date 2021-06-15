@@ -10,7 +10,7 @@ parameters:
     default: succeeded()
   - name: ExtraAnyBuildArgs
     type: string
-    default: --WhyCacheMiss
+    default: ''
 
 steps:
 - bash: |
@@ -40,8 +40,9 @@ steps:
       --ClientApplicationId $(LLVMPrincipalAppId)                         \
       --ClientSecretEnvironmentVariable SECRET                            \
       --ExperimentName "${{ parameters.BuildName }}"                      \
-      ${{ parameters.ExtraAnyBuildArgs }}                                 \
+      --WhyCacheMiss                                                      \
       --WhyCacheMissOptions CacheDataStoreKey=${{ parameters.BuildName }} \
+      ${{ parameters.ExtraAnyBuildArgs }}                                 \
       --                                                                  \
       ${{ parameters.BuildCommandLine }}
   workingDirectory: ${{ parameters.WorkingDirectory }}
