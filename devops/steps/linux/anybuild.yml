@@ -64,11 +64,11 @@ steps:
     mv -v AnyBuild*.log AnyBuildLogs/
   workingDirectory: ${{ parameters.WorkingDirectory }}
   continueOnError: true
-  condition: not(canceled())
+  condition: and(failed(), not(canceled()))
   displayName: Extract AnyBuild Logs
 
 - publish: ${{ parameters.WorkingDirectory }}/AnyBuildLogs
   artifact: AnyBuildLogs-${{ parameters.BuildName }}-linux.$(Build.BuildId)
   continueOnError: true
-  condition: not(canceled())
+  condition: and(failed(), not(canceled()))
   displayName: Publish AnyBuild Logs
