@@ -236,7 +236,7 @@ jobs:
 
   - template: ./steps/linux/anybuild.yml
     parameters:
-      BuildName: LLVM-$(BuildType)-$(CC)-Asan$(Asan)-AnyBuild
+      BuildName: LLVM-$(BuildType)-$(CC)-AnyBuild
       BuildCommandLine: cmake --build . -- -j ${{ parameters.CmakeJobsLinux }} install
       WorkingDirectory: $(LlvmBuildDir)
       ExtraAnyBuildArgs: ${{ parameters.ExtraAnyBuildArgs }}
