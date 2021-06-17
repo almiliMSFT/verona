@@ -26,7 +26,7 @@ parameters:
   # number of parallel cmake jobs when building LLVM on Windows
   - name: CmakeJobsWindows
     type: number
-    default: 24
+    default: 48
 
 resources:
   repositories:
